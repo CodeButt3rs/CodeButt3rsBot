@@ -19,7 +19,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'DiscordBotSite.settings')
 os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
 django.setup()
 
-user = authenticate(username=os.environ.get('AUTH_USER'), password=os.environ.get('AUTH_PASSWORD'))
+user = authenticate(username=os.environ.get('AUTH_USERNAME'), password=os.environ.get('AUTH_PASSWORD'))
 if user: 
     print(datetime.datetime.now(), "Authenticated on Django Server as", user)
     pass 
