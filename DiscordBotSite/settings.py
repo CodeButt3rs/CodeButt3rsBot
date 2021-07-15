@@ -33,7 +33,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY')
 # Application definition
 
 INSTALLED_APPS = [
-    'DiscordApp',
+    'DiscordB',
     'simple_history',
     'django.contrib.admin',
     'django.contrib.auth',

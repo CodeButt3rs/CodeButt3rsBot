@@ -28,7 +28,7 @@ else:
     exit()
 
 
-from DiscordApp.models import *
+from DiscordB.models import *
 
 # ----------------------------- MAIN PART -----------------------------
 
