@@ -5,8 +5,6 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
     </head>
 <body>
-<script>
-</script>
     <h1 style = "text-align: center"><a name='ButtersBot'>CodeBütt3rsBot</a></h1>
     <h1 name='WhatCanBotDo'>What is it?</h1>
     <p>My little project</p>
