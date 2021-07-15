@@ -275,6 +275,11 @@ class Djangoorm(commands.Cog):
         messages = await channel.history(limit=None).flatten()
         return messages
 
+    async def saveMsgs(self, guild):
+        guildMessages = Guild.objects.get(guild_id=guild.id)
+        guildMessages.guild_messages = Message.objects.filter(message_guild=Guild.objects.get(guild_id=guild.id)).count()
+        guildMessages.save()
+
     # START COMMAND / CREATES THREADS / PARRENT OF PARRENTS
     async def startScan(self, guild) -> threading.Thread:
         threading.Thread(target=scanMembers, args=(guild,)).start()
@@ -282,16 +287,12 @@ class Djangoorm(commands.Cog):
         threading.Thread(target=scanCategories, args=(guild,)).start()
         threading.Thread(target=scanChannels, args=(guild,)).start()
         threading.Thread(target=scanRoles, args=(guild,)).start()
+        threads = []
         for i in guild.channels:
             if str(i.type) != 'text': continue
             messages = await i.history(limit=None).flatten()
             t = threading.Thread(target=iterate_messages, args=(i, messages))
             t.start()
-        t.join()
-        guildMessages = Guild.objects.get(guild_id=guild.id)
-        guildMessages.guild_messages = Message.objects.filter(message_guild=Guild.objects.get(guild_id=guild.id)).count()
-        guildMessages.save()
-
     
     @commands.command(name='Scan')
     # @commands.has_permissions(administrator=True)
@@ -309,6 +310,22 @@ class Djangoorm(commands.Cog):
             f"\n:bulb: Type `{os.environ.get('BOT_PREFIX')}help <command>` to read extended info")
             return
         await self.startScan(guild)
+
+    @commands.command(name='SaveMsgs')
+    @commands.is_owner()
+    async def saveMsgCtx(self, ctx):
+        await self.saveMsgs(ctx.guild)
+
+    @commands.command(name='SaveAnotherMsgs')
+    @commands.is_owner()
+    async def saveMsgAnother(self, ctx, guildID: int):
+        guild = get(self.bot.guilds, id=guildID) or None
+        if guild is None: 
+            await ctx.reply(f"{ctx.author.mention}, *An Error occured!*"
+            f"\n:pushpin: Couldn't find Guild with ID: **{guildID}**"
+            f"\n:bulb: Type `{os.environ.get('BOT_PREFIX')}help <command>` to read extended info")
+            return
+        await self.saveMsgs(guild)
 
 
 def setup(bot):
