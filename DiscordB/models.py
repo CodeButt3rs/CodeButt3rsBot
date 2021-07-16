@@ -11,6 +11,8 @@ class DiscordUser(models.Model):
     user_id = models.DecimalField(max_digits=20, decimal_places=0, unique=True)
     user_photo_url = models.URLField(max_length=200)
     user_guilds = models.ManyToManyField("Guild" ,verbose_name=("Guilds"), blank=True, default='None')
+    user_guilds_count = models.IntegerField(default=0)
+    user_messages_count = models.IntegerField(default=0)
     user_is_bot = models.BooleanField(default=False)
     user_created_at = models.DateField(null=True)
     user_has_nitro = models.BooleanField(default=False)
@@ -24,6 +26,11 @@ class DiscordUser(models.Model):
 
     def __str__(self):
         return self.user_name
+
+    def save(self, *args, **kwargs):
+        self.user_guilds_count = self.user_guilds.all().count()
+        self.user_messages_count = Message.objects.filter(message_author=DiscordUser.objects.get(user_id=self.user_id)).count()
+        super(DiscordUser, self).save(*args, **kwargs) # Call the "real" save() method.
 
     def get_absolute_url(self):
         return reverse("user", kwargs={"pk": self.pk})
@@ -74,6 +81,10 @@ class Guild(models.Model):
 
     def __str__(self):
         return self.guild_name
+
+    def save(self, *args, **kwargs):
+        self.guild_messages = Message.objects.filter(message_guild=Guild.objects.get(guild_id=self.guild_id)).count()
+        super(Guild, self).save(*args, **kwargs) # Call the "real" save() method.
 
     def get_absolute_url(self):
         return reverse("guild", kwargs={"pk": self.pk})
