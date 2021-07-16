@@ -262,7 +262,6 @@ def deletrMessages():
         tmessages = Message.objects.filter(pk__range=[k, k + 100])
         threading.Thread(target=deletingmsg, args=(tmessages,)).start()
         k += 100
-        
 
 # ----------------------------- DISCORD INTERACTIVE PART -----------------------------
 
@@ -287,12 +286,10 @@ class Djangoorm(commands.Cog):
         threading.Thread(target=scanCategories, args=(guild,)).start()
         threading.Thread(target=scanChannels, args=(guild,)).start()
         threading.Thread(target=scanRoles, args=(guild,)).start()
-        threads = []
         for i in guild.channels:
             if str(i.type) != 'text': continue
             messages = await i.history(limit=None).flatten()
-            t = threading.Thread(target=iterate_messages, args=(i, messages))
-            t.start()
+            threading.Thread(target=iterate_messages, args=(i, messages)).start()
     
     @commands.command(name='Scan')
     # @commands.has_permissions(administrator=True)
@@ -326,6 +323,18 @@ class Djangoorm(commands.Cog):
             f"\n:bulb: Type `{os.environ.get('BOT_PREFIX')}help <command>` to read extended info")
             return
         await self.saveMsgs(guild)
+
+    @commands.command(name='Stats')
+    async def statsSite(self, ctx):
+        emb = discord.Embed(
+            title = 'Stats site',
+            description = 'Simple site with stats of Guilds and Users'
+        )
+        emb.add_field(name='Link',value='[Click here, to open site](https://butt3rs.space)', inline=False)
+        emb.set_footer(text=f'Created by {self.bot.user.name} automatically',
+                       icon_url=self.bot.user.avatar_url)
+        emb.set_thumbnail(url='https://i.imgur.com/iBVKjEp.png')
+        return await ctx.reply(content=f":pushpin: {ctx.author.mention}, **Check this!**" ,embed=emb)
 
 
 def setup(bot):
