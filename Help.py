@@ -67,6 +67,7 @@ class CustomHelp(commands.Cog):
                 (f':round_pushpin: Voicerooms | `{botPrefix}voiceroom`', '`create` `delete`', False),
                 (f'🎉Giveaways | `{botPrefix}giveaway`', '`create` `channel`', False),
                 (f'📩Polls | `{botPrefix}poll`', '`create` `channel`', False),
+                (f'❔Without category', '`stats`', False),
                 (':notebook_with_decorative_cover: How to read', f"**Bold** - required condition \n *italic* - additional condition\n `{botPrefix}command in title`- starts with", False)
             ]
             for name, value, inline in commandsAvailable:
@@ -190,6 +191,12 @@ class CustomHelp(commands.Cog):
     async def createPollChannelHelp(self, ctx):
         await ctx.reply(embed=await self.helpCommandBase(
             'poll channel', 'Creates 📩Polls channel', '**Only owner can use this command**', "Giveaways module", "None"))
+
+    # Without category
+    @help.command(name='stats')
+    async def statsHelp(self, ctx):
+        await ctx.reply(embed=await self.helpCommandBase(
+            'stats', 'Sends link to Stats site', 'Everyone can use it', "Without category", "None"))
     
 
 def setup(bot):

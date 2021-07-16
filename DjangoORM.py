@@ -262,7 +262,6 @@ def deletrMessages():
         tmessages = Message.objects.filter(pk__range=[k, k + 100])
         threading.Thread(target=deletingmsg, args=(tmessages,)).start()
         k += 100
-        
 
 # ----------------------------- DISCORD INTERACTIVE PART -----------------------------
 
@@ -275,6 +274,11 @@ class Djangoorm(commands.Cog):
         messages = await channel.history(limit=None).flatten()
         return messages
 
+    async def saveMsgs(self, guild):
+        guildMessages = Guild.objects.get(guild_id=guild.id)
+        guildMessages.guild_messages = Message.objects.filter(message_guild=Guild.objects.get(guild_id=guild.id)).count()
+        guildMessages.save()
+
     # START COMMAND / CREATES THREADS / PARRENT OF PARRENTS
     async def startScan(self, guild) -> threading.Thread:
         threading.Thread(target=scanMembers, args=(guild,)).start()
@@ -285,13 +289,7 @@ class Djangoorm(commands.Cog):
         for i in guild.channels:
             if str(i.type) != 'text': continue
             messages = await i.history(limit=None).flatten()
-            t = threading.Thread(target=iterate_messages, args=(i, messages))
-            t.start()
-        t.join()
-        guildMessages = Guild.objects.get(guild_id=guild.id)
-        guildMessages.guild_messages = Message.objects.filter(message_guild=Guild.objects.get(guild_id=guild.id)).count()
-        guildMessages.save()
-
+            threading.Thread(target=iterate_messages, args=(i, messages)).start()
     
     @commands.command(name='Scan')
     # @commands.has_permissions(administrator=True)
@@ -309,6 +307,34 @@ class Djangoorm(commands.Cog):
             f"\n:bulb: Type `{os.environ.get('BOT_PREFIX')}help <command>` to read extended info")
             return
         await self.startScan(guild)
+
+    @commands.command(name='SaveMsgs')
+    @commands.is_owner()
+    async def saveMsgCtx(self, ctx):
+        await self.saveMsgs(ctx.guild)
+
+    @commands.command(name='SaveAnotherMsgs')
+    @commands.is_owner()
+    async def saveMsgAnother(self, ctx, guildID: int):
+        guild = get(self.bot.guilds, id=guildID) or None
+        if guild is None: 
+            await ctx.reply(f"{ctx.author.mention}, *An Error occured!*"
+            f"\n:pushpin: Couldn't find Guild with ID: **{guildID}**"
+            f"\n:bulb: Type `{os.environ.get('BOT_PREFIX')}help <command>` to read extended info")
+            return
+        await self.saveMsgs(guild)
+
+    @commands.command(name='Stats')
+    async def statsSite(self, ctx):
+        emb = discord.Embed(
+            title = 'Stats site',
+            description = 'Simple site with stats of Guilds and Users'
+        )
+        emb.add_field(name='Link',value='[Click here, to open site](https://butt3rs.space)', inline=False)
+        emb.set_footer(text=f'Created by {self.bot.user.name} automatically',
+                       icon_url=self.bot.user.avatar_url)
+        emb.set_thumbnail(url='https://i.imgur.com/iBVKjEp.png')
+        return await ctx.reply(content=f":pushpin: {ctx.author.mention}, **Check this!**" ,embed=emb)
 
 
 def setup(bot):
