@@ -1,6 +1,7 @@
 from django.db import models
 from colorfield.fields import ColorField
 from django.urls.base import reverse
+from django.utils import timezone
 from simple_history.models import HistoricalRecords
 
 # Create your models here.
@@ -28,7 +29,7 @@ class DiscordUser(models.Model):
         return self.user_name
 
     def save(self, *args, **kwargs):
-        self.user_guilds_count = self.user_guilds.all().count()
+        self.user_guilds_count = self.user_guilds.count()
         self.user_messages_count = Message.objects.filter(message_author=DiscordUser.objects.get(user_id=self.user_id)).count()
         super(DiscordUser, self).save(*args, **kwargs) # Call the "real" save() method.
 
@@ -179,6 +180,7 @@ class Polls(models.Model):
     polls_author = models.ForeignKey(DiscordUser, on_delete=models.CASCADE, blank=True)
     polls_options = models.ManyToManyField(Polls_option, related_name='options_available',default='None', blank=True)
     polls_time = models.DateTimeField()
+    polls_created_at = models.DateField(auto_now_add=True, null=True)
     polls_guild = models.ForeignKey(Guild, on_delete=models.CASCADE, blank=True)
     poll_winner = models.ForeignKey(Polls_option, related_name='options_winner', on_delete=models.CASCADE, blank=True, null=True)
     poll_history = HistoricalRecords()
@@ -192,4 +194,23 @@ class Polls(models.Model):
 
     def get_absolute_url(self):
         return reverse("polls", kwargs={"pk": self.pk})
+
+class Bot(models.Model):
+
+    bot_update = models.DateTimeField()
+    bot_name = models.CharField(default=None, blank=True, max_length=255)
+
+    class Meta:
+        verbose_name = ("bot")
+        verbose_name_plural = ("bots")
+
+    def __str__(self):
+        return self.bot_name
+
+    def get_absolute_url(self):
+        return reverse("bot_detail", kwargs={"pk": self.pk})
+
+    def save(self, *args, **kwargs):
+        self.bot_update = timezone.localtime(timezone.now())
+        super(Bot, self).save(*args, **kwargs) # Call the "real" save() method.
 
