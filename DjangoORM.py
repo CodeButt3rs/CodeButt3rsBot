@@ -1,6 +1,4 @@
 import os
-from discord.ext.commands.converter import _get_from_guilds
-from discord.ext.commands.core import command
 import django
 import datetime
 import discord
@@ -9,7 +7,7 @@ import asyncio
 
 from dotenv import load_dotenv
 from discord.utils import get
-from discord.ext import commands
+from discord.ext import commands, tasks
 from django.contrib.auth import authenticate
 
 load_dotenv()
@@ -28,7 +26,7 @@ else:
     exit()
 
 
-from DiscordB.models import *
+from DiscordB.models import Guild, GuildChannel, DiscordUser, Message, Category, Polls, Polls_option, Role, Bot
 
 # ----------------------------- MAIN PART -----------------------------
 
@@ -268,6 +266,7 @@ def deletrMessages():
 class Djangoorm(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.botStatus.start()
         print(datetime.datetime.now(), "Django module loaded!")
 
     async def history(self, channel):
@@ -330,12 +329,15 @@ class Djangoorm(commands.Cog):
             title = 'Stats site',
             description = 'Simple site with stats of Guilds and Users'
         )
-        emb.add_field(name='Link',value='[Click here, to open site](https://butt3rs.space)', inline=False)
+        emb.add_field(name='Link',value='[Click here, to open site](http://butt3rs.space)', inline=False)
         emb.set_footer(text=f'Created by {self.bot.user.name} automatically',
                        icon_url=self.bot.user.avatar_url)
         emb.set_thumbnail(url='https://i.imgur.com/iBVKjEp.png')
         return await ctx.reply(content=f":pushpin: {ctx.author.mention}, **Check this!**" ,embed=emb)
 
+    @tasks.loop(minutes=3)
+    async def botStatus(self):
+        Bot.objects.get(pk=2).save()
 
 def setup(bot):
     bot.add_cog(Djangoorm(bot))
