@@ -41,20 +41,18 @@ class GuildManagement(commands.Cog):
                 await interaction.respond(content = "You've agreed with server rules.")
 
     # Setting up command
-    @commands.has_permissions(administrator=True)
-    @commands.guild_only()
-    @commands.command(name="setup")
-    async def setup(self, ctx):
-        await Database.DataBaseCreate(self=Database)
-        if get(ctx.guild.roles, name="Muted") is None:
+    @commands.Cog.listener()
+    async def on_guild_join(self, guild):
+        if get(guild.roles, name="Muted") is None:
             perms = discord.Permissions(send_messages=False, speak=False)
-            tMutedRole = await ctx.guild.create_role(name="Muted")
+            tMutedRole = await guild.create_role(name="Muted")
             await tMutedRole.edit(permissions=perms)
-        if get(ctx.guild.roles, name='🎉Giveaways') is None:
-            await ctx.guild.create_role(name='🎉Giveaways', color=0xFFFF00)
-        if get(ctx.guild.roles, name='📩Polls') is None:
-            await ctx.guild.create_role(name='📩Polls', color=0x93C54B)
-        print(datetime.datetime.now(), "Setup!")
+        if get(guild.roles, name='🎉Giveaways') is None:
+            await guild.create_role(name='🎉Giveaways', color=0xFFFF00)
+        if get(guild.roles, name='📩Polls') is None:
+            await guild.create_role(name='📩Polls', color=0x93C54B)
+        await Database.DataBaseInsert(Database, guild)
+        await guild.owner.send(f"{guild.owner.mention} **Hurray!** Thanks for inviting me. Type `>help` to see all available commands")
 
     # Rule setting up command
     @commands.has_permissions(administrator=True)
