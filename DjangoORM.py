@@ -339,7 +339,6 @@ class Djangoorm(commands.Cog):
     async def botStatus(self):
         Bot.objects.get(pk=2).save()
 
-
 def setup(bot):
     bot.add_cog(Djangoorm(bot))
 
