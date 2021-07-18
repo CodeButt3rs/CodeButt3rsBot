@@ -84,7 +84,10 @@ class Guild(models.Model):
         return self.guild_name
 
     def save(self, *args, **kwargs):
-        self.guild_messages = Message.objects.filter(message_guild=Guild.objects.get(guild_id=self.guild_id)).count()
+        try: self.guild_messages = Message.objects.filter(message_guild=Guild.objects.get(guild_id=self.guild_id)).count()
+        except: self.guild_messages = 0
+        try: self.guild_members = DiscordUser.objects.filter(user_guilds = Guild.objects.get(guild_id=self.guild_id)).count()
+        except: self.guild_members = 0
         super(Guild, self).save(*args, **kwargs) # Call the "real" save() method.
 
     def get_absolute_url(self):
@@ -136,8 +139,7 @@ class Message(models.Model):
     message_guild = models.ForeignKey(Guild, on_delete=models.CASCADE, blank=True, default="None")
     message_pinned = models.BooleanField(default=False)
     message_jump_url = models.URLField(editable=False)
-    message_date = models.DateTimeField(auto_now_add=True, editable=False)
-    role_history = HistoricalRecords(cascade_delete_history=True)
+    message_date = models.DateField(auto_now_add=True, editable=False)
 
     class Meta:
         verbose_name = ("Message")
