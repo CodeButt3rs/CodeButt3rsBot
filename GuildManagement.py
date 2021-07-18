@@ -88,6 +88,13 @@ class GuildManagement(commands.Cog):
             f"\nRole {role.mention} has setted!")
         print(datetime.datetime.now(), ctx.author, 'has setted the server rules role', role.name)
 
+    @commands.command(name='AllGuilds')
+    @commands.is_owner()
+    async def allGuild(self, ctx):
+        guildList = "**Guilds list:**"
+        for i in self.bot.guilds:
+            guildList += f"\nName: {i.name}, ID:{i.id}"
+        await ctx.send(content=guildList)
 
 def setup(bot):
     bot.add_cog(GuildManagement(bot))
