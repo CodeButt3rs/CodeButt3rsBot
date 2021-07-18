@@ -1,3 +1,4 @@
+from decimal import Decimal
 import discord
 import sqlite3
 import datetime
@@ -16,8 +17,9 @@ class Database(commands.Cog):
     
     # --- A kinda useless ---
     async def DataBaseInsert(self, guild):
-        fetch = c.execute(f'SELECT guildid FROM guildsettings WHERE guildid = {guild.id}')
-        if fetch is None:
+        c.execute(f'SELECT guildid FROM guildsettings WHERE guildid = {guild.id}')
+        fetch = lambda f: None if f is None else f[0]
+        if fetch(c.fetchone()) is None:
             c.execute(f"INSERT INTO guildsettings(guildid) VALUES({guild.id})")
             con.commit()
         else:
@@ -83,43 +85,43 @@ class Database(commands.Cog):
         # -- SELECT commands
     async def getVoiceChannel(self, guild) -> int or None:
         c.execute(f'SELECT voicechannel FROM guildsettings WHERE guildid = {guild.id}')
-        fetch = c.fetchone()[0] or None
-        return fetch
+        fetch = lambda f: None if f is None else f[0]
+        return fetch(c.fetchone())
 
     async def getVoiceCategory(self, guild) -> int or None:
         c.execute(f'SELECT voicecategory FROM guildsettings WHERE guildid = {guild.id}')
-        fetch = c.fetchone()[0] or None
-        return fetch
+        fetch = lambda f: None if f is None else f[0]
+        return fetch(c.fetchone())
 
     async def getWelcomeMsg(self, guild) -> int or None:
         c.execute(f"SELECT welcomemsg FROM guildsettings WHERE guildid = {guild.id}")
-        fetch = c.fetchone()[0] or None
-        return fetch
+        fetch = lambda f: None if f is None else f[0]
+        return fetch(c.fetchone())
 
     async def getCounterChannel(self, guild) -> int or None:
         c.execute(f'SELECT counterchannel FROM guildsettings WHERE guildid = {guild.id}')
-        fetch = c.fetchone()[0] or None
-        return fetch
+        fetch = lambda f: None if f is None else f[0]
+        return fetch(c.fetchone())
 
     async def getGiveawaysChannel(self, guild) -> int or None:
         c.execute(f'SELECT giveawayschannel FROM guildsettings WHERE guildid = {guild.id}')
-        fetch = c.fetchone()[0] or None
-        return fetch
+        fetch = lambda f: None if f is None else f[0]
+        return fetch(c.fetchone())
 
     async def getLogChannel(self, guild) -> int or None:
         c.execute(f'SELECT logchannel FROM guildsettings WHERE guildid = {guild.id}')
-        fetch = c.fetchone()[0] or None
-        return fetch
+        fetch = lambda f: None if f is None else f[0]
+        return fetch(c.fetchone())
 
     async def getPollsChannel(self, guild) -> int or None:
         c.execute(f'SELECT pollschannel FROM guildsettings WHERE guildid = {guild.id}')
-        fetch = c.fetchone()[0] or None
-        return fetch
+        fetch = lambda f: None if f is None else f[0]
+        return fetch(c.fetchone())
 
     async def getWelcomeRole(self, guild) -> int or None:
         c.execute(f'SELECT welcomerole FROM guildsettings WHERE guildid = {guild.id}')
-        fetch = c.fetchone()[0] or None
-        return fetch
+        fetch = lambda f: None if f is None else f[0]
+        return fetch(c.fetchone())(c.fetchone)
 
 
     # --- DataBase Owner and Administrator commands ---

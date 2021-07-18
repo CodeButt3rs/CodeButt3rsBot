@@ -7,7 +7,7 @@ import operator
 import os
 
 # Every module have his own function, don't mix them in one file
-from DjangoORM import pollCreate, pollDelete, pollOptionCreate, pollOptionsVoters, pollWinnerSet
+from DjangoORM import pollObject, pollDelete, pollOptionCreate, pollOptionsVoters, pollWinnerSet
 from discord_components.component import ButtonStyle
 from discord_components import Button
 from DatabaseTools import Database
@@ -41,7 +41,9 @@ class Polls(commands.Cog):
     async def pollChannel(self, ctx):
         fetch = await Database.getPollsChannel(self=Database, guild=ctx.guild)
         if get(ctx.guild.channels, id=fetch) is not None:
-            return print(datetime.datetime.now(), "Can't create Polls Channel while another one exists")
+            print(datetime.datetime.now(), "Can't create Polls Channel while another one exists")
+            return await ctx.reply(f"{ctx.author.mention}, *Can't create Polls Channel while another one exists!*"
+            f"\n:bulb: Type `{botPrefix}help <PollCommand/Polls>` to read info about")
         overwrites={
             ctx.guild.default_role: discord.PermissionOverwrite(send_messages=False, read_messages=True)
         }
@@ -97,9 +99,9 @@ class Polls(commands.Cog):
         # End of JSON area
         print(datetime.datetime.now(), 'Poll #', msg.id, ' with', len(args), 'options and ', item ,'question has created by', ctx.author)
         # Django Area
-        pollCreate(ctx, msg, end, item)
-        for i in components[0]:
-            pollOptionCreate(msg, i.label, ctx.guild)
+        pollObject(ctx, msg, end, item) # Djangon
+        for i in components[0]: # Djangon 
+            pollOptionCreate(msg, i.label, ctx.guild) # Djangon
         # End of Django Area
         while time > 0:
             with open(f"Polls/{msg.id}.json", "r") as i:
@@ -115,7 +117,7 @@ class Polls(commands.Cog):
                 await msg.edit(embed=emb)
             except:
                 print(datetime.datetime.now(), "Can't find poll: maybe it was deleted")
-                pollDelete(msg)
+                pollDelete(msg) # Djangon
                 break
             time += -1
             await asyncio.sleep(1)
@@ -132,21 +134,21 @@ class Polls(commands.Cog):
                 with open(f"Polls/{msg.id}.json", "w") as i:
                     json.dump(data, i)
                 print(datetime.datetime.now(), 'Poll #', msg.id, 'has ended! No valid entrants.')
-                pollWinnerSet(msg, 'No valid entrants')
+                pollWinnerSet(msg, 'No valid entrants') # Djangon
                 return await msg.edit(embed=emb, components = [])
             else:
                 d = {}
                 for i in args:
                     d[i] = int(len(data[i]))
                     emb.add_field(name=f'Option "{i}"', value=f'`{len(data[i])}` votes')
-                    pollOptionsVoters(msg, i, data[i])
+                    pollOptionsVoters(msg, i, data[i]) # Djangon
                 winner = max(d.items(), key=operator.itemgetter(1))[0]
                 emb.add_field(name='Winner', value=winner, inline=False)
             emb.colour = 0xFFD966
             emb.add_field(name='Ended at', value=end.strftime("%b %d %Y %H:%M:%S"), inline=False)
             await msg.edit(embed=emb, components = [])
             data['winner'] = winner
-            pollWinnerSet(msg, winner)
+            pollWinnerSet(msg, winner) # Djangon
             print(datetime.datetime.now(), 'Poll #', msg.id, 'has ended!')
             with open(f"Polls/{msg.id}.json", "w") as i:
                 json.dump(data, i)
@@ -173,17 +175,19 @@ class Polls(commands.Cog):
     async def cog_command_error(self, ctx, error):
         if isinstance(error, commands.CommandInvokeError):
             await ctx.reply(f"{ctx.author.mention}, *An Error occured!*"
-            "\n:pushpin: When you creating Poll you **MUST** follow the rules:"
-            "\n**1.** Arguments must be 80 or fewer in length"
+            "\n:pushpin: When you creating Poll you **MUST** follow the rules"
             f"\n:bulb: Type `{botPrefix}help` <command> to read info about")
-        if isinstance(error, commands.MissingRequiredArgument):
+        elif isinstance(error, commands.MissingRequiredArgument):
             await ctx.reply(f"{ctx.author.mention}, *An Error occured!*"
             "\n:pushpin: Be sure to have **ALL** ruquired arguments: Time of poll, Question, Arguments"
             f"\n:bulb: Type `{botPrefix}help` <command> to read info about")
-        if isinstance(error, discord.Forbidden):
+        elif isinstance(error, discord.Forbidden):
             await ctx.reply(f"{ctx.author.mention}, *An Error occured!*"
             "\n:pushpin: I don't have enought permissions to do this!"
             f"\n:bulb: Type `{botPrefix}help` <command> to read info about")
+        else:
+            await ctx.reply(f"{ctx.author.mention}, *An Error occured!*"
+            f"\n:pushpin: Type `{botPrefix}help` <command> to read info about")
         print(datetime.datetime.now(), "An error ocurred:", error)
     
 

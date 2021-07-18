@@ -172,7 +172,7 @@ class CustomHelp(commands.Cog):
     @giveawayModuleHelp.command(name='channel')
     async def createGiveawayChannelHelp(self, ctx):
         await ctx.reply(embed=await self.helpCommandBase(
-            'giveaway channel', 'Creates giveaways channel', '**Only owner can use this command**', "Giveaways module", "None"))
+            'giveaway channel', 'Creates giveaways channel', f'**Only administrator with {get(ctx.guild.roles, name="🎉Giveaways").mention} role can do that**', "Giveaways module", "None"))
 
     # -- Polls module
     @help.group(name='poll')
@@ -185,12 +185,12 @@ class CustomHelp(commands.Cog):
     @pollModuleHelp.command(name='create')
     async def createPollHelp(self, ctx):
         await ctx.reply(embed=await self.helpCommandBase(
-            'poll create', 'Creates poll in 📩Polls channel', f'**{get(ctx.guild.roles, name="📩Polls").mention} role**', "Giveaways module", "**EXISTS POLLS CHANNEL | Time > 10, question, at least 1 arg**"))
+            'poll create', 'Creates poll in 📩Polls channel', f'**{get(ctx.guild.roles, name="📩Polls").mention} role**', "Polls module", "**EXISTS POLLS CHANNEL | Time > 10 mins, poll item, at least 1 arg**"))
     
     @pollModuleHelp.command(name='channel')
     async def createPollChannelHelp(self, ctx):
         await ctx.reply(embed=await self.helpCommandBase(
-            'poll channel', 'Creates 📩Polls channel', '**Only owner can use this command**', "Giveaways module", "None"))
+            'poll channel', 'Creates 📩Polls channel', f'**Only administrator with {get(ctx.guild.roles, name="📩Polls").mention} role can do that**', "Polls module", "None"))
 
     # Without category
     @help.command(name='stats')

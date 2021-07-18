@@ -18,7 +18,7 @@ class VoiceChat(commands.Cog):
         vchannel = get(member.guild.channels, id=voiceid)
         category = get(member.guild.categories, id=categoryid)
         if category is None:
-            return await member.move_to(channel=None)
+            return
         if vchannel is None:
             return
         if after.channel is not None:

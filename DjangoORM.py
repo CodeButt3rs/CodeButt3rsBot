@@ -1,10 +1,12 @@
+import asyncio
 import os
 import django
 import datetime
 import discord
 import threading
-import asyncio
 
+from discord.ext.commands import BucketType
+from decimal import *
 from dotenv import load_dotenv
 from discord.utils import get
 from discord.ext import commands, tasks
@@ -25,220 +27,172 @@ else:
     print("Can't authorize on Django server. Bot shutting down due unavailable Django module")
     exit()
 
-
 from DiscordB.models import Guild, GuildChannel, DiscordUser, Message, Category, Polls, Polls_option, Role, Bot
-
-# ----------------------------- MAIN PART -----------------------------
-
 # ----------------------------- UTILS -----------------------------
-
-# RGB to HEX color
-def rgb_to_hex(red, green, blue):
+def rgb_to_hex(red, green, blue): # RGB to HEX color
     return '#%02x%02x%02x' % (red, green, blue)
 
-# ----------------------------- THREADING PART -----------------------------
+def getVerificationLevel(verification): # Verification level
+    if verification == discord.enums.VerificationLevel.none:
+        return 0
+    elif verification == discord.enums.VerificationLevel.low:
+        return 1
+    elif verification == discord.enums.VerificationLevel.medium:
+        return 2
+    elif verification == discord.enums.VerificationLevel.high:
+        return 3
 
-# Iterate every memebers with N role / CREATING THREAD
-def iterate_role_members(role, roleObject):
-    for i in role.members:
-        user = DiscordUser.objects.get(user_id=i.id)
-        user.user_roles.add(roleObject)
+def is_guild_owner():
+    def predicate(ctx):
+        return ctx.guild is not None and ctx.guild.owner_id == ctx.author.id
+    return commands.check(predicate)
 
-# Iterate every message in N channel and collect info / THREAD METHOD / PARRENT: Djangoorm.amount
-def iterate_messages(channel, history):
-    for i in history:
-        # Little explanation wtf is going on here
-        # Trying to find existing message_object
-        try: 
-            message_Object = Message.objects.get(message_id=i.id)
-        except:  
-            message_Object = Message(message_id=i.id)
-        message_Object.message_channel = GuildChannel.objects.get(channel_id=channel.id)
-        # Trying to find existing DiscordUser in Database (Made for cases when USER is Discord or smth else)
-        try: 
-            message_Object.message_author = DiscordUser.objects.get(user_id=i.author.id)
-        except: 
-            message_Object.message_author = DiscordUser.objects.get(user_id=11111111111111111111)
-        message_Object.message_channel = GuildChannel.objects.get(channel_id=channel.id)
-        # Trying to find existing Category in Database (Made for cases when channel ouside of category)
-        try: 
-            message_Object.message_category = Category.objects.get(category_id=channel.category.id)
-        except: 
-            message_Object.message_category = Category.objects.get(category_id=11111111111111111111)
-        message_Object.message_guild = Guild.objects.get(guild_id=channel.guild.id)
-        message_Object.message_pinned = i.pinned
-        message_Object.message_jump_url = i.jump_url
-        message_Object.message_date = i.created_at
-        message_Object.message_content = i.content
-        message_Object.save()
-    for j in Message.objects.filter(message_channel=GuildChannel.objects.get(channel_id=channel.id)):
-        if get(history, id=j.message_id):
+# ----------------------------- MAIN PART -----------------------------
+def startingMethod(guild):
+    threading.Thread(target=membersScan, args=(guild,)).start()
+    t1 = threading.Thread(target=guildScan, args=(guild,))
+    t1.start()
+    t1.join()
+    threading.Thread(target=categoriesScan, args=(guild,)).start()
+    threading.Thread(target=channelsScan, args=(guild,)).start()
+    threading.Thread(target=rolesScan, args=(guild,))
+
+def messagesScan(messages, channel): # Scans messages in channel
+    for i in messages:
+        isUser = lambda i: i.id if i.id != None else 0
+        isCategory = lambda i: i.id if i.category != None else 11111111111111111111
+        values = {
+            'message_guild': Guild.objects.get(guild_id = i.guild.id),
+            'message_channel': GuildChannel.objects.get(channel_id = channel.id),
+            'message_author': DiscordUser.objects.get(user_id = isUser(i.author)),
+            'message_category': Category.objects.get(category_id = isCategory(i.channel.category)),
+            'message_pinned': i.pinned,
+            'message_jump_url': i.jump_url,
+            'message_date': i.created_at,
+            'message_content': i.content
+        }
+        Message.objects.update_or_create(message_id = i.id, defaults=values)
+    for i in Message.objects.filter(message_channel=GuildChannel.objects.get(channel_id=channel.id)).iterator():
+        if get(messages, id=i.message_id):
             pass
         else:
-            j.delete()
-       
-# Collect category overral info / THREAD METHOD / PARRENT: scanCategories
-def cateogries_iterate(guild, i):
-    try: 
-        category_Object = Category.objects.get(category_id=i.id)
-    except: 
-        category_Object = Category(category_id=i.id)
-    category_Object.category_name = i.name
-    category_Object.category_id = i.id
-    category_Object.category_guild = Guild.objects.get(guild_id=guild.id)
-    category_Object.save()
-    for j in Category.objects.filter(category_guild=Guild.objects.get(guild_id=guild.id)):
+            i.delete()
+
+def categoriesScan(guild): # Scans categories in guild
+    for i in guild.categories:
+        values = {
+            'category_name': i.name,
+            'category_guild': Guild.objects.get(guild_id=guild.id),
+        }
+        Category.objects.update_or_create(category_id=i.id, defaults=values)
+    for j in Category.objects.filter(category_guild=Guild.objects.get(guild_id=guild.id)).iterator():
         if get(guild.categories, id=j.category_id):
             pass
         else:
             j.delete()
 
-# Iterate every user on server / CREATES THREAD / REQUIRED
-def scanMembers(guild):
-    members = guild.members
-    for i in members:
-        try: 
-            user_Object = DiscordUser.objects.get(user_id=i.id)
-        except: 
-            user_Object = DiscordUser(user_id=i.id)
-        user_Object.user_name = i.name
-        user_Object.user_id = i.id
-        user_Object.user_is_bot = i.bot
-        user_Object.user_created_at = i.created_at
-        user_Object.user_photo_url = i.avatar_url
-        user_Object.has_nitro = i.avatar_url
-        user_Object.user_photo_url = i.avatar_url
-        user_Object.save()
-    for j in DiscordUser.objects.filter(user_guilds=Guild.objects.get(guild_id=guild.id)):
-        if get(guild.members, id=j.user_id): 
-            pass
-        else:
-            j.user_guilds.remove(Guild.objects.get(guild_id=guild.id))
-    print("Django Members Done!")
+def membersScan(guild): # Scans all members in guild
+    for i in guild.members:
+        values = {
+            'user_name': i.name,
+            'user_is_bot': i.bot,
+            'user_created_at': i.created_at,
+            'user_photo_url': i.avatar_url,
+        }
+        DiscordUser.objects.update_or_create(user_id=i.id, defaults=values)
 
-# Collect overral info about Guild / CREATES THREAD OPTIONAL / REQUIRED
-def scanGuild(guild):
-    _k = 0
-    try:
-        guild_Object = Guild.objects.get(guild_id=guild.id)
-    except:
-        guild_Object = Guild(guild_id=guild.id)
-    guild_Object.guild_name = guild.name
-    guild_Object.guild_photo_url = guild.icon_url
-    guild_Object.guild_description = guild.description
-    guild_Object.guild_members = guild.member_count
-    guild_Object.guild_roles = len(guild.roles)
+def guildScan(guild): # Scans guild
+    channels = 0
     for i in guild.channels:
         if get(guild.categories, id=i.id): 
             pass
-        else: _k += 1
-    guild_Object.guild_channels = _k
-    guild_Object.guild_categoriest = len(guild.categories)
-    guild_Object.guild_owner = DiscordUser.objects.get(user_id=guild.owner.id)
-    guild_Object.guild_default_role = Role.objects.get(role_name='@everyone')
-    guild_Object.guild_large = guild.large
-    guild_Object.guild_created_at = guild.created_at
-    if guild.verification_level == discord.enums.VerificationLevel.none:
-        guild_Object.guild_verification_level = 0
-    elif guild.verification_level == discord.enums.VerificationLevel.low:
-        guild_Object.guild_verification_levell = 1
-    elif guild.verification_level == discord.enums.VerificationLevel.medium:
-        guild_Object.guild_verification_level = 2
-    elif guild.verification_level == discord.enums.VerificationLevel.high:
-        guild_Object.guild_verification_level = 3
-    i = guild_Object
-    guild_Object.save()
+        else: channels += 1
+    isPhoto = lambda i: i.icon_url if i.icon_url else 'https://i.imgur.com/3FckpoP.png'
+    values = {
+        'guild_id': guild.id,
+        'guild_name': guild.name,
+        'guild_photo_url': isPhoto(guild), 
+        'guild_members': guild.member_count,
+        'guild_description': guild.description,
+        'guild_roles': len(guild.roles),
+        'guild_channels': channels,
+        'guild_categoriest': len(guild.categories),
+        'guild_owner': DiscordUser.objects.get(user_id=guild.owner.id),
+        'guild_large': guild.large,
+        'guild_created_at': guild.created_at,
+        'guild_verification_level': getVerificationLevel(guild.verification_level),
+    }
+    Guild.objects.update_or_create(guild_id = guild.id, defaults=values)
     for i in guild.members:
-        userObject = DiscordUser.objects.get(user_id=i.id)
-        userObject.user_guilds.add(Guild.objects.get(guild_id = guild.id))
-        userObject.save()
-    print("Django Guild Done!")
+        user = DiscordUser.objects.get(user_id=i.id)
+        user.user_guilds.add(Guild.objects.get(guild_id = guild.id))
+        user.save()
+    for i in DiscordUser.objects.filter(user_guilds=Guild.objects.get(guild_id=guild.id)).iterator():
+        if get(guild.members, id=i.user_id): 
+            pass
+        else:
+            i.user_guilds.remove(Guild.objects.get(guild_id=guild.id))
 
-# Iterate every category in Guild / CREATES THREAD
-def scanCategories(guild):
-    for i in guild.categories:
-        threading.Thread(target=cateogries_iterate, args=(guild, i))
-    print("Django Categories Done!")
-
-# Iterate every channel in Guild / THREAD METHOD / PARRENT: NONE
-def scanChannels(guild):
+def channelsScan(guild): # Scans all channels in guild
     for i in guild.channels:
-        if get(guild.categories, id=i.id): continue
-        try:
-            channel_Object = GuildChannel.objects.get(channel_id=i.id)
-        except:
-            channel_Object = GuildChannel(channel_id=i.id)
-        channel_Object.channel_name = i.name
-        channel_Object.channel_id = i.id
-        channel_Object.channel_guild = Guild.objects.get(guild_id=guild.id)
-        try:
-            channel_Object.channel_category = Category.objects.get(category_id=i.category_id)
-        except:
-            channel_Object.channel_category = Category.objects.get(pk=11)
-        if str(i.type) == 'text':
-            channel_Object.channel_text = True
-        channel_Object.save()
-    for j in GuildChannel.objects.filter(channel_guild=Guild.objects.get(guild_id=guild.id)):
-        if get(guild.channels, id=j.channel_id):
+        isText = lambda i: True if str(i.type) == 'text' else False
+        isCategory = lambda i: i.category.id if i.category != None else 11111111111111111111
+        values = {
+            'channel_name': i.name,
+            'channel_guild': Guild.objects.get(guild_id=guild.id),
+            'channel_category': Category.objects.get(category_id=isCategory(i)),
+            'channel_text': isText(i),
+        }
+        GuildChannel.objects.update_or_create(channel_id=i.id, defaults=values)
+    for i in GuildChannel.objects.filter(channel_guild=Guild.objects.get(guild_id=guild.id)).iterator():
+        if get(guild.channels, id=i.channel_id):
             pass
         else:
-            j.delete()
-    print("DjangoChannels Done!")
+            i.delete()
 
-# Iterate every role in Guild / THREAD METHOD / PARRENT: NONE
-def scanRoles(guild):
+def rolesScan(guild): # Scans all roles in channels
     for i in guild.roles:
-        if i == guild.default_role:
-            continue
-        try:
-            role_Object = Role.objects.get(role_id=i.id)
-        except:
-            role_Object = Role(role_id=i.id)
-        role_Object.role_name = i.name
-        role_Object.role_id = i.id
-        role_Object.role_color = rgb_to_hex(i.colour.r, i.colour.g, i.colour.b)
-        role_Object.save()
-        role_Object.role_guild.add(Guild.objects.get(guild_id=guild.id))
-        role_Object.save()
-        threading.Thread(target=iterate_role_members, args=(i, role_Object)).start()
-    for j in Role.objects.filter(role_guild=Guild.objects.get(guild_id=guild.id)):
-        if get(guild.roles, id=j.role_id):
+        if i == guild.default_role: continue
+        values = {
+            'role_name': i.name,
+            'role_color': rgb_to_hex(i.colour.r, i.colour.g, i.colour.b)
+        }
+        Role.objects.update_or_create(role_id = i.id, defaults=values)
+        role = Role.objects.get(role_id=i.id)
+        role.role_guild.add(Guild.objects.get(guild_id=guild.id))
+        role.save()
+        for j in i.members:
+            user = DiscordUser.objects.get(user_id=j.id)
+            user.user_roles.add(role)
+        for k in DiscordUser.objects.filter(user_roles = role):
+            if get(i.members, id=k.user_id):
+                pass
+            else:
+                k.user_roles.remove(role)
+    for i in Role.objects.filter(role_guild=Guild.objects.get(guild_id=guild.id)):
+        if get(guild.roles, id=i.role_id):
             pass
         else:
-                j.delete()
-        print("Django Roles Done!")
+            i.delete()
 
+def pollObject(ctx, msg, end_at, item): # Polls Area
+    values = {
+        'polls_name': item,
+        'polls_author': DiscordUser.objects.get(user_id=ctx.author.id),
+        'polls_time': end_at,
+        'polls_guild': Guild.objects.get(guild_id=ctx.guild.id)
+    }
+    Polls.objects.update_or_create(polls_id = msg.id, defaults=values)
 
-def pollCreate(ctx, msg, end_at, item):
-    polls_Object = Polls(
-        polls_id = msg.id,
-        polls_name = item,
-        polls_author = DiscordUser.objects.get(user_id=ctx.author.id),
-        polls_time = end_at,
-        polls_guild = Guild.objects.get(guild_id=ctx.guild.id)
-        )
-    polls_Object.save()
-    return print(datetime.datetime.now(), f"Poll #{msg.id} inserted in database!")
+def pollOptionCreate(msg, name, guild): # Polls Area
+    values = {
+        'option_poll': Polls.objects.get(polls_id = msg.id),
+        'option_name': name,
+        'option_guild': Guild.objects.get(guild_id = guild.id)
+    }
+    Polls_option.objects.update_or_create(defaults=values)
 
-def pollDelete(msg):
-    polls_Object = Polls.objects.get(polls_id = msg.id)
-    polls_Object.delete()
-
-def pollOptionCreate(msg, name, guild):
-    pollOption_Object = Polls_option(
-        option_poll = Polls.objects.get(polls_id = msg.id),
-        option_name = name,
-        option_guild = Guild.objects.get(guild_id = guild.id)
-        )
-    pollOption_Object.save()
-
-def pollOptionsVoters(msg, name, participants):
-    pollOption_Object = Polls_option.objects.get(option_name = name, option_poll = Polls.objects.get(polls_id = msg.id))
-    for i in participants:
-        pollOption_Object.option_voters.add(DiscordUser.objects.get(user_id=int(i)))
-    pollOption_Object.save()
-
-def pollWinnerSet(msg, winner):
+def pollWinnerSet(msg, winner): # Polls Area
     polls_Object = Polls.objects.get(polls_id = msg.id)
     if winner == "No valid entrants":
         polls_Object.poll_winner = Polls_option.objects.get(pk=4)
@@ -246,21 +200,16 @@ def pollWinnerSet(msg, winner):
         polls_Object.poll_winner = Polls_option.objects.get(option_poll = polls_Object, option_name = winner)
     polls_Object.save()
 
-def deletingmsg(messages):
-    for i in messages:
-        try: 
-            i.delete()
-            print(i, "| Deleted")
-        except: 
-            pass
+def pollDelete(msg): # Polls Area
+    polls_Object = Polls.objects.get(polls_id = msg.id)
+    polls_Object.delete()
 
-def deletrMessages():
-    k = 1
-    while k < Message.objects.all().count():
-        tmessages = Message.objects.filter(pk__range=[k, k + 100])
-        threading.Thread(target=deletingmsg, args=(tmessages,)).start()
-        k += 100
-
+def pollOptionsVoters(msg, name, participants): # Polls Area
+    pollOption_Object = Polls_option.objects.get(option_name = name, option_poll = Polls.objects.get(polls_id = msg.id))
+    for i in participants:
+        pollOption_Object.option_voters.add(DiscordUser.objects.get(user_id=int(i)))
+    pollOption_Object.save()
+    
 # ----------------------------- DISCORD INTERACTIVE PART -----------------------------
 
 class Djangoorm(commands.Cog):
@@ -269,32 +218,30 @@ class Djangoorm(commands.Cog):
         self.botStatus.start()
         print(datetime.datetime.now(), "Django module loaded!")
 
-    async def history(self, channel):
-        messages = await channel.history(limit=None).flatten()
-        return messages
-
-    async def saveMsgs(self, guild):
-        guildMessages = Guild.objects.get(guild_id=guild.id)
-        guildMessages.guild_messages = Message.objects.filter(message_guild=Guild.objects.get(guild_id=guild.id)).count()
-        guildMessages.save()
-
-    # START COMMAND / CREATES THREADS / PARRENT OF PARRENTS
-    async def startScan(self, guild) -> threading.Thread:
-        threading.Thread(target=scanMembers, args=(guild,)).start()
-        threading.Thread(target=scanGuild, args=(guild,)).start()
-        threading.Thread(target=scanCategories, args=(guild,)).start()
-        threading.Thread(target=scanChannels, args=(guild,)).start()
-        threading.Thread(target=scanRoles, args=(guild,)).start()
+    async def messages(self, guild):
         for i in guild.channels:
             if str(i.type) != 'text': continue
             messages = await i.history(limit=None).flatten()
-            threading.Thread(target=iterate_messages, args=(i, messages)).start()
+            threading.Thread(target=messagesScan, args=(messages, i)).start()
+
+    async def startScan(self, guild) -> threading.Thread:
+        threading.Thread(target=startingMethod, args=(guild,)).start()
+        await asyncio.sleep(120)
+        await self.messages(guild)
     
-    @commands.command(name='Scan')
+    @commands.cooldown(1, 3600 * 12, type=BucketType.guild)
+    @commands.command(name='StartScan')
     # @commands.has_permissions(administrator=True)
-    @commands.is_owner()
+    @commands.has_guild_permissions(administrator=True)
     async def scan(self, ctx):
         await self.startScan(ctx.guild)
+        await self.messages(ctx.guild)
+
+    @scan.error
+    async def scan_error(self, ctx, error):
+        if isinstance(error, commands.CommandOnCooldown):
+            return await ctx.reply(f"{ctx.author.mention}, *Cooldown enabled!*"
+            f"\n:pushpin: **This command can be used every 12hrs!** Remaining time: {datetime.timedelta(seconds=int(error.retry_after))}")
 
     @commands.command(name='ScanAnother')
     @commands.is_owner()
@@ -306,22 +253,6 @@ class Djangoorm(commands.Cog):
             f"\n:bulb: Type `{os.environ.get('BOT_PREFIX')}help <command>` to read extended info")
             return
         await self.startScan(guild)
-
-    @commands.command(name='SaveMsgs')
-    @commands.is_owner()
-    async def saveMsgCtx(self, ctx):
-        await self.saveMsgs(ctx.guild)
-
-    @commands.command(name='SaveAnotherMsgs')
-    @commands.is_owner()
-    async def saveMsgAnother(self, ctx, guildID: int):
-        guild = get(self.bot.guilds, id=guildID) or None
-        if guild is None: 
-            await ctx.reply(f"{ctx.author.mention}, *An Error occured!*"
-            f"\n:pushpin: Couldn't find Guild with ID: **{guildID}**"
-            f"\n:bulb: Type `{os.environ.get('BOT_PREFIX')}help <command>` to read extended info")
-            return
-        await self.saveMsgs(guild)
 
     @commands.command(name='Stats')
     async def statsSite(self, ctx):
