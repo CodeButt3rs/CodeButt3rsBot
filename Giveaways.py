@@ -3,6 +3,7 @@ import discord
 import asyncio
 import json
 import random
+import threading
 
 from random import randrange
 from discord_components.component import ButtonStyle
@@ -11,6 +12,7 @@ from DatabaseTools import Database
 from discord.ext import commands
 from discord.utils import get
 from tzlocal import get_localzone
+from DjangoORM import giveawayDelete, giveawayObject, giveawayWinnerSet
 
 class Giveaways(commands.Cog):
     def __init__(self, bot):
@@ -42,7 +44,7 @@ class Giveaways(commands.Cog):
     @commands.has_any_role('🎉Giveaways')
     @commands.guild_only()
     @giveaway.command(name='create')
-    async def giveawayCreate(self, ctx, time: int, *, item: str):
+    async def giveawayCreate(self, ctx, time: int, item):
         if time <= 0:
             return await ctx.reply(f":pushpin: {ctx.author.mention},  I can't create giveaway with less 10 mins in time!")
         fetch = await Database.getGiveawaysChannel(self=Database, guild=ctx.guild)
@@ -61,7 +63,7 @@ class Giveaways(commands.Cog):
         emb.add_field(name = 'Null', value = f'Null', inline=False )
         emb.add_field(name = 'Null', value = f'Null', inline=False )
         emb.set_footer(text=f'Created by {self.bot.user.name}')
-        msg = await channel.send('@everyone',
+        msg = await channel.send('everyone',
             embed=emb,
             components = 
                 [Button(label= '🎉 Enter giveaway', style=ButtonStyle.green)])
@@ -79,6 +81,9 @@ class Giveaways(commands.Cog):
         with open(f"Giveaways/{msg.id}.json", "w") as i:
             json.dump(data, i)
         print(datetime.datetime.now(), 'Giveaway #', msg.id, 'has created by', ctx.author, 'with item', item, 'and time', time)
+        t = threading.Thread(target=giveawayObject, args=(ctx, msg, end, item))
+        t.start()
+        t.join()
         while time > 0:
             with open(f"Giveaways/{msg.id}.json", "r") as i:
                 data = json.load(i)
@@ -96,6 +101,7 @@ class Giveaways(commands.Cog):
                 await msg.edit(embed=emb)
             except:
                 print(datetime.datetime.now(), "Can't find giveaway: maybe it was deleted")
+                threading.Thread(target=giveawayDelete(msg)).start()
                 break
             time += -1
             await asyncio.sleep(60)
@@ -112,6 +118,7 @@ class Giveaways(commands.Cog):
                 with open(f"Giveaways/{msg.id}.json", "w") as i:
                     json.dump(data, i)
                 print(datetime.datetime.now(), 'Giveaway #', msg.id, 'created by', ctx.author, 'has ended! No valid entrants, so a winner could not be determined.')
+                threading.Thread(target=giveawayWinnerSet(msg, "No valid entrants")).start()
                 return await msg.edit(embed=emb, components = [])
             else:
                 random.seed(randrange(10000))
@@ -124,6 +131,7 @@ class Giveaways(commands.Cog):
             await msg.edit(embed=emb, components = [])
             data['winner'] = winner.id
             print(datetime.datetime.now(), 'Giveaway #', msg.id, 'created by', ctx.author, 'has ended! Random Number -', winnerNumber, ',', winner,'has won', item)
+            threading.Thread(target=giveawayWinnerSet(msg, winner.id)).start()
             with open(f"Giveaways/{msg.id}.json", "w") as i:
                 json.dump(data, i)
 

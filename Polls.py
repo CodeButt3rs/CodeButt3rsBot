@@ -99,9 +99,11 @@ class Polls(commands.Cog):
         # End of JSON area
         print(datetime.datetime.now(), 'Poll #', msg.id, ' with', len(args), 'options and ', item ,'question has created by', ctx.author)
         # Django Area
-        pollObject(ctx, msg, end, item) # Djangon
-        for i in components[0]: # Djangon 
-            pollOptionCreate(msg, i.label, ctx.guild) # Djangon
+        t = threading.Thread(target=pollObject, args=(ctx, msg, end, item))
+        t.start()
+        t.join()
+        for i in components[0]: # Django
+            threading.Thread(target=pollOptionCreate, args=(msg, i.label, ctx.guild)).start()
         # End of Django Area
         while time > 0:
             with open(f"Polls/{msg.id}.json", "r") as i:
@@ -117,10 +119,10 @@ class Polls(commands.Cog):
                 await msg.edit(embed=emb)
             except:
                 print(datetime.datetime.now(), "Can't find poll: maybe it was deleted")
-                pollDelete(msg) # Djangon
+                pollDelete(msg) # Django
                 break
             time += -1
-            await asyncio.sleep(1)
+            await asyncio.sleep(60)
         if time <= 0:
             emb.clear_fields()
             emb.title = f':pencil: Poll #{msg.id} by {ctx.author.name}!'
@@ -134,14 +136,14 @@ class Polls(commands.Cog):
                 with open(f"Polls/{msg.id}.json", "w") as i:
                     json.dump(data, i)
                 print(datetime.datetime.now(), 'Poll #', msg.id, 'has ended! No valid entrants.')
-                pollWinnerSet(msg, 'No valid entrants') # Djangon
+                pollWinnerSet(msg, 'No valid entrants') # Django
                 return await msg.edit(embed=emb, components = [])
             else:
                 d = {}
                 for i in args:
                     d[i] = int(len(data[i]))
                     emb.add_field(name=f'Option "{i}"', value=f'`{len(data[i])}` votes')
-                    pollOptionsVoters(msg, i, data[i]) # Djangon
+                    pollOptionsVoters(msg, i, data[i]) # Django
                 winner = max(d.items(), key=operator.itemgetter(1))[0]
                 emb.add_field(name='Winner', value=winner, inline=False)
             emb.colour = 0xFFD966
@@ -175,8 +177,7 @@ class Polls(commands.Cog):
     async def cog_command_error(self, ctx, error):
         if isinstance(error, commands.CommandInvokeError):
             await ctx.reply(f"{ctx.author.mention}, *An Error occured!*"
-            "\n:pushpin: When you creating Poll you **MUST** follow the rules"
-            f"\n:bulb: Type `{botPrefix}help` <command> to read info about")
+            f"\n:pushpin: Type `{botPrefix}help` <command> to read info about")
         elif isinstance(error, commands.MissingRequiredArgument):
             await ctx.reply(f"{ctx.author.mention}, *An Error occured!*"
             "\n:pushpin: Be sure to have **ALL** ruquired arguments: Time of poll, Question, Arguments"

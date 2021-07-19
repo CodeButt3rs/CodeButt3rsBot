@@ -27,7 +27,7 @@ else:
     print("Can't authorize on Django server. Bot shutting down due unavailable Django module")
     exit()
 
-from DiscordB.models import Guild, GuildChannel, DiscordUser, Message, Category, Polls, Polls_option, Role, Bot
+from DiscordB.models import Giveaways, Guild, GuildChannel, DiscordUser, Message, Category, Polls, Polls_option, Role, Bot
 # ----------------------------- UTILS -----------------------------
 def rgb_to_hex(red, green, blue): # RGB to HEX color
     return '#%02x%02x%02x' % (red, green, blue)
@@ -175,6 +175,8 @@ def rolesScan(guild): # Scans all roles in channels
         else:
             i.delete()
 
+
+# Polls
 def pollObject(ctx, msg, end_at, item): # Polls Area
     values = {
         'polls_name': item,
@@ -185,17 +187,20 @@ def pollObject(ctx, msg, end_at, item): # Polls Area
     Polls.objects.update_or_create(polls_id = msg.id, defaults=values)
 
 def pollOptionCreate(msg, name, guild): # Polls Area
-    values = {
-        'option_poll': Polls.objects.get(polls_id = msg.id),
-        'option_name': name,
-        'option_guild': Guild.objects.get(guild_id = guild.id)
-    }
-    Polls_option.objects.update_or_create(defaults=values)
+    Polls_option.objects.update_or_create(
+        option_poll = Polls.objects.get(polls_id = msg.id),
+        option_name =  name,
+        option_guild = Guild.objects.get(guild_id = guild.id))
+    poll = Polls.objects.get(polls_id = msg.id)
+    poll.polls_options.add(Polls_option.objects.get(
+        option_poll = Polls.objects.get(polls_id = msg.id),
+        option_name =  name,option_guild = Guild.objects.get(guild_id = guild.id))
+        )
 
 def pollWinnerSet(msg, winner): # Polls Area
     polls_Object = Polls.objects.get(polls_id = msg.id)
     if winner == "No valid entrants":
-        polls_Object.poll_winner = Polls_option.objects.get(pk=4)
+        polls_Object.poll_winner = Polls_option.objects.get(pk=39)
     else:
         polls_Object.poll_winner = Polls_option.objects.get(option_poll = polls_Object, option_name = winner)
     polls_Object.save()
@@ -210,6 +215,29 @@ def pollOptionsVoters(msg, name, participants): # Polls Area
         pollOption_Object.option_voters.add(DiscordUser.objects.get(user_id=int(i)))
     pollOption_Object.save()
     
+
+# Giveaways
+def giveawayObject(ctx, msg, end_at, item): # Polls Area
+    values = {
+        'giveaway_item': item,
+        'giveaway_author': DiscordUser.objects.get(user_id=ctx.author.id),
+        'giveaway_time': end_at,
+        'giveaway_guild': Guild.objects.get(guild_id=ctx.guild.id)
+    }
+    Giveaways.objects.update_or_create(giveaway_id = msg.id, defaults=values)
+
+def giveawayWinnerSet(msg, winner): # Polls Area
+    giveaway_Object = Giveaways.objects.get(giveaway_id = msg.id)
+    if winner == "No valid entrants":
+        giveaway_Object.giveaway_winner = DiscordUser.objects.get(pk=39)
+    else:
+        giveaway_Object.giveaway_winner = DiscordUser.objects.get(user_id = winner)
+    giveaway_Object.save()
+
+def giveawayDelete(msg): # Polls Area
+    giveaway_Object = Giveaways.objects.get(giveaway_id = msg.id)
+    giveaway_Object.delete()
+
 # ----------------------------- DISCORD INTERACTIVE PART -----------------------------
 
 class Djangoorm(commands.Cog):
