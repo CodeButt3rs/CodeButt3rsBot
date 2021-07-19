@@ -254,7 +254,7 @@ class Djangoorm(commands.Cog):
 
     async def startScan(self, guild) -> threading.Thread:
         threading.Thread(target=startingMethod, args=(guild,)).start()
-        await asyncio.sleep(120)
+        await asyncio.sleep(600) # 10minutes cooldown
         await self.messages(guild)
     
     @commands.cooldown(1, 3600 * 12, type=BucketType.guild)
