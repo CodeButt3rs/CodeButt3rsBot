@@ -229,7 +229,7 @@ def giveawayObject(ctx, msg, end_at, item): # Polls Area
 def giveawayWinnerSet(msg, winner): # Polls Area
     giveaway_Object = Giveaways.objects.get(giveaway_id = msg.id)
     if winner == "No valid entrants":
-        giveaway_Object.giveaway_winner = DiscordUser.objects.get(pk=39)
+        giveaway_Object.giveaway_winner = DiscordUser.objects.get(pk=31)
     else:
         giveaway_Object.giveaway_winner = DiscordUser.objects.get(user_id = winner)
     giveaway_Object.save()
