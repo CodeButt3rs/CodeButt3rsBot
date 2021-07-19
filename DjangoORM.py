@@ -60,12 +60,12 @@ def startingMethod(guild):
 def messagesScan(messages, channel): # Scans messages in channel
     for i in messages:
         isUser = lambda i: i.id if i.id != None else 0
-        isCategory = lambda i: i.id if i.category != None else 11111111111111111111
+        isCategory = lambda i: i.category.id if i.category != None else 11111111111111111111
         values = {
             'message_guild': Guild.objects.get(guild_id = i.guild.id),
             'message_channel': GuildChannel.objects.get(channel_id = channel.id),
             'message_author': DiscordUser.objects.get(user_id = isUser(i.author)),
-            'message_category': Category.objects.get(category_id = isCategory(i.channel.category)),
+            'message_category': Category.objects.get(category_id = isCategory(i.channel)),
             'message_pinned': i.pinned,
             'message_jump_url': i.jump_url,
             'message_date': i.created_at,
