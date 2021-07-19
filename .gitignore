@@ -1,8 +1,8 @@
 __pycache__/
 /Discordapp/__pycache__
 /DiscordBotSite/__pycache__
-/Polls/*
-/Giveaways/*
+/Polls/*.json
+/Giveaways/*.json
 /env
 Structure of raw data button.py
 .env
