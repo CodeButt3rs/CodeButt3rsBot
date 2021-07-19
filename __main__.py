@@ -5,6 +5,12 @@ import datetime
 from dotenv import load_dotenv
 from discord.ext import commands
 
+if not os.path.exists('Polls'):
+    os.makedirs('Polls')
+    
+if not os.path.exists('Giveaways'):
+    os.makedirs('Giveaways')
+
 dir_path = os.path.dirname(os.path.realpath(__file__))
 load_dotenv()
 
