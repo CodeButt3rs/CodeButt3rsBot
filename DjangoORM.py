@@ -1,5 +1,7 @@
 import asyncio
 import os
+from discord import message
+from discord.ext.commands.core import command
 import django
 import datetime
 import discord
@@ -49,7 +51,7 @@ def is_guild_owner():
 
 # ----------------------------- MAIN PART -----------------------------
 def startingMethod(guild):
-    threading.Thread(target=membersScan, args=(guild,)).start()
+    threading.Thread(target=membersScanToList, args=(guild,)).start()
     t1 = threading.Thread(target=guildScan, args=(guild,))
     t1.start()
     t1.join()
@@ -57,26 +59,42 @@ def startingMethod(guild):
     threading.Thread(target=channelsScan, args=(guild,)).start()
     threading.Thread(target=rolesScan, args=(guild,))
 
-def messagesScan(messages, channel): # Scans messages in channel
+def messagesScanToList(messages, channel): # Scans messages in channel
+    messagesList = []
     for i in messages:
-        isUser = lambda i: i.id if i.id != None else 0
-        isCategory = lambda i: i.category.id if i.category != None else 11111111111111111111
+        try: user = DiscordUser.objects.get(user_id = i.author.id) 
+        except: user = DiscordUser.objects.get(user_id = 11111111111111111111)
+        isCategory = lambda j: j.category.id if j.category is not None else 11111111111111111111
         values = {
+            'message_id': i.id,
             'message_guild': Guild.objects.get(guild_id = i.guild.id),
             'message_channel': GuildChannel.objects.get(channel_id = channel.id),
-            'message_author': DiscordUser.objects.get(user_id = isUser(i.author)),
+            'message_author': user,
             'message_category': Category.objects.get(category_id = isCategory(i.channel)),
             'message_pinned': i.pinned,
             'message_jump_url': i.jump_url,
             'message_date': i.created_at,
             'message_content': i.content
         }
-        Message.objects.update_or_create(message_id = i.id, defaults=values)
+        messagesList.append(values)
+    modulo = (len(messagesList) % 1000) * 1000
+    for i in range(1, len(messagesList), 1000):
+        if i + modulo < i+1000:
+            threading.Thread(target=messagesUpdate, args=(messagesList[i:modulo],)).start()
+        else:
+            threading.Thread(target=messagesUpdate, args=(messagesList[i:i+100],)).start()
     for i in Message.objects.filter(message_channel=GuildChannel.objects.get(channel_id=channel.id)).iterator():
         if get(messages, id=i.message_id):
+            # print(i.message_id, "| Message approved")
             pass
         else:
+            # print(i.message_id, "| Message outdated")
             i.delete()
+
+def messagesUpdate(list): # Scans messages in channel
+    for i in list:
+        Message.objects.update_or_create(message_id = int(i['message_id']), defaults=i)
+        # print(i['message_id'], "| Message processed")
 
 def categoriesScan(guild): # Scans categories in guild
     for i in guild.categories:
@@ -85,21 +103,38 @@ def categoriesScan(guild): # Scans categories in guild
             'category_guild': Guild.objects.get(guild_id=guild.id),
         }
         Category.objects.update_or_create(category_id=i.id, defaults=values)
+        # print(i.name, "| Category proceed")
     for j in Category.objects.filter(category_guild=Guild.objects.get(guild_id=guild.id)).iterator():
         if get(guild.categories, id=j.category_id):
+            # print(j.category_name, "| Category approved")
             pass
         else:
+            # print(j.category_name, "| Category outdated")
             j.delete()
 
-def membersScan(guild): # Scans all members in guild
+
+def membersScanUpdating(list): # Updates_or_creates members in list
+    for i in list:
+        DiscordUser.objects.update_or_create(user_id = i['user_id'], defaults=i)
+        # print(i['user_name'], "| User proceed")
+
+def membersScanToList(guild): # Scans all members in guild
+    membersList = []
     for i in guild.members:
         values = {
+            'user_id': i.id,
             'user_name': i.name,
             'user_is_bot': i.bot,
             'user_created_at': i.created_at,
             'user_photo_url': i.avatar_url,
         }
-        DiscordUser.objects.update_or_create(user_id=i.id, defaults=values)
+        membersList.append(values)
+    modulo = (len(membersList) % 100) * 100
+    for i in range(1, len(membersList), 100):
+        if i + modulo < i+100:
+            threading.Thread(target=membersScanUpdating, args=(membersList[i:modulo],)).start()
+        else:
+            threading.Thread(target=membersScanUpdating, args=(membersList[i:i+100],)).start()
 
 def guildScan(guild): # Scans guild
     channels = 0
@@ -123,14 +158,17 @@ def guildScan(guild): # Scans guild
         'guild_verification_level': getVerificationLevel(guild.verification_level),
     }
     Guild.objects.update_or_create(guild_id = guild.id, defaults=values)
+    # print(values['guild_name'], "| Guild Proceed")
     for i in guild.members:
         user = DiscordUser.objects.get(user_id=i.id)
         user.user_guilds.add(Guild.objects.get(guild_id = guild.id))
         user.save()
     for i in DiscordUser.objects.filter(user_guilds=Guild.objects.get(guild_id=guild.id)).iterator():
         if get(guild.members, id=i.user_id): 
+            # print(i.user_name, "| User approved")
             pass
         else:
+            # print(i.user_name, "| User outdated")
             i.user_guilds.remove(Guild.objects.get(guild_id=guild.id))
 
 def channelsScan(guild): # Scans all channels in guild
@@ -144,10 +182,13 @@ def channelsScan(guild): # Scans all channels in guild
             'channel_text': isText(i),
         }
         GuildChannel.objects.update_or_create(channel_id=i.id, defaults=values)
+        # print(i.name, "| Channel proceed")
     for i in GuildChannel.objects.filter(channel_guild=Guild.objects.get(guild_id=guild.id)).iterator():
         if get(guild.channels, id=i.channel_id):
+            # print(i.channel_name, "| Channel approved")
             pass
         else:
+            # print(i.channel_name, "| Channel approved")
             i.delete()
 
 def rolesScan(guild): # Scans all roles in channels
@@ -169,10 +210,13 @@ def rolesScan(guild): # Scans all roles in channels
                 pass
             else:
                 k.user_roles.remove(role)
+        print(i.name, "| Role proceed")
     for i in Role.objects.filter(role_guild=Guild.objects.get(guild_id=guild.id)):
         if get(guild.roles, id=i.role_id):
+            # print(i.name, "| Role approved")
             pass
         else:
+            # print(i.name, "| Role outdated")
             i.delete()
 
 
@@ -250,11 +294,13 @@ class Djangoorm(commands.Cog):
         for i in guild.channels:
             if str(i.type) != 'text': continue
             messages = await i.history(limit=None).flatten()
-            threading.Thread(target=messagesScan, args=(messages, i)).start()
+            threading.Thread(target=messagesScanToList, args=(messages, i)).start()
 
     async def startScan(self, guild) -> threading.Thread:
         threading.Thread(target=startingMethod, args=(guild,)).start()
-        await asyncio.sleep(120)
+        await guild.owner.send(f"{guild.owner.mention}, *Scanning sequence started*"
+            f"\n:pushpin: **Messages scanning process will start in 20 minutes**")
+        await asyncio.sleep(60 * 20) # 20minutes cooldown
         await self.messages(guild)
     
     @commands.cooldown(1, 3600 * 12, type=BucketType.guild)

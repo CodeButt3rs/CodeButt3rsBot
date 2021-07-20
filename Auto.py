@@ -66,13 +66,13 @@ class Messages(commands.Cog):
 
     @commands.command(name="botsettings")
     async def settings(self, ctx):
-        logchannel = get(ctx.guild.channels, id=await Database.getLogChannel(self=self, guild=ctx.guild)) or 'None'
-        voicechannel = get(ctx.guild.channels, id=await Database.getVoiceChannel(self=self, guild=ctx.guild)) or 'None'
-        voicecategory = get(ctx.guild.categories, id=await Database.getVoiceCategory(self=self, guild=ctx.guild)) or 'None'
-        membercounter = get(ctx.guild.channels, id=await Database.getCounterChannel(self=self, guild=ctx.guild)) or 'None'
-        giveawaychannel = get(ctx.guild.channels, id=await Database.getGiveawaysChannel(self=self, guild=ctx.guild)) or 'None'
-        pollschannel = get(ctx.guild.channels, id=await Database.getPollsChannel(self=self, guild=ctx.guild)) or 'None'
-        welcomerole = get(ctx.guild.roles, id=await Database.getWelcomeRole(self=self, guild=ctx.guild)) or 'None'
+        logchannel = get(ctx.guild.channels, id=await Database.getLogChannel(Database, ctx.guild)) or 'None'
+        voicechannel = get(ctx.guild.channels, id=await Database.getVoiceChannel(Database, ctx.guild)) or 'None'
+        voicecategory = get(ctx.guild.categories, id=await Database.getVoiceCategory(Database, ctx.guild)) or 'None'
+        membercounter = get(ctx.guild.channels, id=await Database.getCounterChannel(Database, ctx.guild)) or 'None'
+        giveawaychannel = get(ctx.guild.channels, id=await Database.getGiveawaysChannel(Database, ctx.guild)) or 'None'
+        pollschannel = get(ctx.guild.channels, id=await Database.getPollsChannel(Database, ctx.guild)) or 'None'
+        welcomerole = get(ctx.guild.roles, id=await Database.getWelcomeRole(Database, ctx.guild)) or 'None'
         fields = [
             (':robot: | Logs Channel', f"`{logchannel}`", True),
             (':microphone2: | Temporary Channels', f"`{voicechannel}`", True),

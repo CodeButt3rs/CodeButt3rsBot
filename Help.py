@@ -67,7 +67,7 @@ class CustomHelp(commands.Cog):
                 (f':round_pushpin: Voicerooms | `{botPrefix}voiceroom`', '`create` `delete`', False),
                 (f'🎉Giveaways | `{botPrefix}giveaway`', '`create` `channel`', False),
                 (f'📩Polls | `{botPrefix}poll`', '`create` `channel`', False),
-                (f'❔Without category', '`stats`', False),
+                (f'📊Statistics', '`stats`, `startscan`', False),
                 (':notebook_with_decorative_cover: How to read', f"**Bold** - required condition \n *italic* - additional condition\n `{botPrefix}command in title`- starts with", False)
             ]
             for name, value, inline in commandsAvailable:
@@ -193,10 +193,21 @@ class CustomHelp(commands.Cog):
             'poll channel', 'Creates 📩Polls channel', f'**Only administrator with {get(ctx.guild.roles, name="📩Polls").mention} role can do that**', "Polls module", "None"))
 
     # Without category
+    @help.command(name='Statistics')
+    async def statsModuleHelp(self, ctx):
+            desc = 'Stats module'
+            commands = "`startscan` `stats`"
+            await ctx.reply(embed=await self.helpModuleBase(f'📊Stats', desc, commands))
+
     @help.command(name='stats')
-    async def statsHelp(self, ctx):
+    async def StatsStatsHelp(self, ctx):
         await ctx.reply(embed=await self.helpCommandBase(
-            'stats', 'Sends link to Stats site', 'Everyone can use it', "Without category", "None"))
+            'stats', 'Sends link to Stats site', 'Everyone can use it', "Stats module", "None"))
+
+    @help.command(name='startscan')
+    async def startScanStatsHelp(self, ctx):
+        await ctx.reply(embed=await self.helpCommandBase(
+            'startscan', 'Starts scan', '**Only guild owner can use it**', "Stats module", "None"))
     
 
 def setup(bot):
