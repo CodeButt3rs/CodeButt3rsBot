@@ -1,12 +1,20 @@
-from decimal import Decimal
-import discord
 import sqlite3
 import datetime
+import psycopg2
+import os 
 
+from dotenv import load_dotenv
 from discord.ext import commands
 from discord.utils import get
 
-con = sqlite3.connect('Database.db')
+load_dotenv()
+
+con = psycopg2.connect(
+    host = os.environ.get('DATABASE_HOST'),
+    database = os.environ.get('DATABASE_NAME'),
+    user = os.environ.get('DATABASE_USER'),
+    password = os.environ.get('DATABASE_PASSWORD')
+)
 c = con.cursor()
 
 
@@ -14,8 +22,8 @@ class Database(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         print(datetime.datetime.now(), "Data base module loaded!")
-    
-    # --- A kinda useless ---
+
+    # --- A kinda useless?? ---
     async def DataBaseInsert(self, guild):
         c.execute(f'SELECT guildid FROM guildsettings WHERE guildid = {guild.id}')
         fetch = lambda f: None if f is None else f[0]
@@ -40,6 +48,13 @@ class Database(commands.Cog):
         c.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_guildid ON guildsettings(guildid)')
         con.commit()
         return print(datetime.datetime.now(), 'Database created!')
+
+    @commands.command(name='ownersetup')
+    async def ownersetup(self, ctx):
+        await self.DataBaseCreate()
+        for i in self.bot.guilds:
+            await self.DataBaseInsert(i)
+        await ctx.send('Done!')
 
     # --- UPDATE commands ---
     async def setLogChannel(self, guild, channel):
