@@ -84,10 +84,12 @@ class Guild(models.Model):
         return self.guild_name
 
     def save(self, *args, **kwargs):
-        try: self.guild_messages = Message.objects.filter(message_guild=Guild.objects.get(guild_id=self.guild_id)).count()
-        except: self.guild_messages = 0
-        try: self.guild_members = DiscordUser.objects.filter(user_guilds = Guild.objects.get(guild_id=self.guild_id)).count()
-        except: self.guild_members = 0
+        if Message.objects.filter(message_guild = self).exists(): 
+            self.guild_messages = Message.objects.filter(message_guild = self).count()
+        else: self.guild_messages = 0
+        if DiscordUser.objects.filter(user_guilds = self).exists(): 
+            self.guild_members = DiscordUser.objects.filter(user_guilds = self).count()
+        else: self.guild_members = 0
         super(Guild, self).save(*args, **kwargs) # Call the "real" save() method.
 
     def get_absolute_url(self):
@@ -184,6 +186,7 @@ class Polls(models.Model):
     polls_id = models.DecimalField(max_digits=30, decimal_places=0, unique=True, verbose_name='Poll ID', null=True, editable=False)
     polls_name = models.CharField(max_length=255, verbose_name='Poll name')
     polls_author = models.ForeignKey(DiscordUser, on_delete=models.CASCADE, blank=True, verbose_name='Poll author')
+    polls_participants = models.ManyToManyField(DiscordUser, related_name='polls_participants', blank=True, verbose_name='Poll participants')
     polls_options = models.ManyToManyField(Polls_option, related_name='options_available',default='None', blank=True)
     polls_time = models.DateTimeField(verbose_name='End time')
     polls_created_at = models.DateField(auto_now_add=True, null=True, verbose_name='Created at')

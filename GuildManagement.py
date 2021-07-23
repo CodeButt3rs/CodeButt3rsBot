@@ -60,7 +60,7 @@ class GuildManagement(commands.Cog):
     @commands.command(name='setrules')
     async def setmessage(self, ctx, message: str):
         await ctx.message.delete()
-        msg = await ctx.send(f"everyone\n {message}", components = 
+        msg = await ctx.send(f"{message}", components = 
         [[Button(label= 'Agree', style=ButtonStyle.green),
          Button(label= 'Disagree', style=ButtonStyle.red)]])
         msgid = msg.id

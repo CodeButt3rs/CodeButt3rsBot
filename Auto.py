@@ -19,14 +19,14 @@ class Messages(commands.Cog):
     async def on_connect(self):
         print(datetime.datetime.now(), 'Connected to Discord Servers')
 
-    @commands.Cog.listener()
-    async def on_ready(self):
-        guild = get(self.bot.guilds, id=799929695218171904)
-        try:
-            await guild.owner.send(f"{guild.owner.mention} **Hurray!** I've launched on Heroku and ready to serve you!")
-        except:
-            pass
-        print(datetime.datetime.now(), "Hurray! I've launched on Heroku and ready to serve you!")
+    # @commands.Cog.listener()
+    # async def on_ready(self):
+    #     guild = get(self.bot.guilds, id=799929695218171904)
+    #     try:
+    #         await guild.owner.send(f"{guild.owner.mention} **Hurray!** I've launched on Heroku and ready to serve you!")
+    #     except:
+    #         pass
+    #     print(datetime.datetime.now(), "Hurray! I've launched on Heroku and ready to serve you!")
 
     @commands.Cog.listener()
     async def on_resumed(self):
@@ -64,7 +64,7 @@ class Messages(commands.Cog):
             await Database.setVoiceChannelNull(self=Database, guild=channel.guild)
             print(datetime.datetime.now(), 'Voiceroom channel has deleted!')
 
-    @commands.command(name="botsettings")
+    @commands.command(name="settings")
     async def settings(self, ctx):
         logchannel = get(ctx.guild.channels, id=await Database.getLogChannel(Database, ctx.guild)) or 'None'
         voicechannel = get(ctx.guild.channels, id=await Database.getVoiceChannel(Database, ctx.guild)) or 'None'
@@ -96,6 +96,8 @@ class Messages(commands.Cog):
             await ctx.reply(f"{ctx.author.mention}, *This command is Server only!*"
             f"\n:pushpin: **This command can't be used in private messages!**")
         else:
+            await ctx.reply(f"{ctx.author.mention}, *An error occured!*"
+            f"\n:pushpin: **Contact the bot owner and tell him Time and Used command**")
             print(datetime.datetime.now(), "Unexpected error:", error)
 
 

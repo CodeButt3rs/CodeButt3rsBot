@@ -1,7 +1,6 @@
 import asyncio
 import os
-from discord import message
-from discord.ext.commands.core import command
+import random
 import django
 import datetime
 import discord
@@ -12,6 +11,7 @@ from decimal import *
 from dotenv import load_dotenv
 from discord.utils import get
 from discord.ext import commands, tasks
+from django.utils import timezone
 from django.contrib.auth import authenticate
 
 load_dotenv()
@@ -142,7 +142,7 @@ def guildScan(guild): # Scans guild
         if get(guild.categories, id=i.id): 
             pass
         else: channels += 1
-    isPhoto = lambda i: i.icon_url if i.icon_url else 'https://i.imgur.com/3FckpoP.png'
+    isPhoto = lambda i: i.icon_url if i.icon_url else f'https://cdn.discordapp.com/embed/avatars/{random.randrange(1,6)}.png'
     values = {
         'guild_id': guild.id,
         'guild_name': guild.name,
@@ -221,6 +221,19 @@ def rolesScan(guild): # Scans all roles in channels
 
 
 # Polls
+def getAllActivePolls():
+    return Polls.objects.filter(polls_time__gt = timezone.localtime(timezone.now())).iterator()
+
+def getPoll(id):
+    return Polls.objects.get(polls_id = id)
+
+def getList(id):
+    list = []
+    for i in getPoll(id).polls_participants.all():
+        list.append(i.user_id)
+    return list
+
+
 def pollObject(ctx, msg, end_at, item): # Polls Area
     values = {
         'polls_name': item,
@@ -253,12 +266,14 @@ def pollDelete(msg): # Polls Area
     polls_Object = Polls.objects.get(polls_id = msg.id)
     polls_Object.delete()
 
-def pollOptionsVoters(msg, name, participants): # Polls Area
-    pollOption_Object = Polls_option.objects.get(option_name = name, option_poll = Polls.objects.get(polls_id = msg.id))
-    for i in participants:
-        pollOption_Object.option_voters.add(DiscordUser.objects.get(user_id=int(i)))
+def addPollsVote(name, id, userId):
+    polls_Object = Polls.objects.get(polls_id = id)
+    polls_Object.polls_participants.add(DiscordUser.objects.get(user_id = int(userId)))
+    pollOption_Object = Polls_option.objects.get(option_name = name, option_poll = Polls.objects.get(polls_id = int(id)))
+    pollOption_Object.option_voters.add(DiscordUser.objects.get(user_id=int(userId)))
+    polls_Object.save()
     pollOption_Object.save()
-    
+
 
 # Giveaways
 def giveawayObject(ctx, msg, end_at, item): # Polls Area

@@ -7,11 +7,11 @@ import operator
 import os
 
 # Every module have his own function, don't mix them in one file
-from DjangoORM import pollObject, pollDelete, pollOptionCreate, pollOptionsVoters, pollWinnerSet
+from DjangoORM import addPollsVote, getList, pollObject, pollDelete, pollOptionCreate, pollWinnerSet, getAllActivePolls, getPoll, timezone
 from discord_components.component import ButtonStyle
 from discord_components import Button
 from DatabaseTools import Database
-from discord.ext import commands
+from discord.ext import commands, tasks
 from discord.utils import get
 from tzlocal import get_localzone
 from dotenv import load_dotenv
@@ -24,6 +24,63 @@ class Polls(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         print(datetime.datetime.now(), "Polls module loaded!")
+
+    async def pollsTask(self, object):
+        guild = get(self.bot.guilds, id=object.polls_guild.guild_id)
+        channel = get(guild.channels, id=await Database.getPollsChannel(Database, guild))
+        history = await channel.history(limit=10).flatten()
+        msg = get(history, id=object.polls_id)
+        emb = msg.embeds[0]
+        deltaTime = object.polls_time - datetime.datetime.now().astimezone(get_localzone())
+        time = int(deltaTime.total_seconds() / 60)
+        while time > 0:
+            if time < 60:
+                emb.set_field_at(index= 2, name = 'Remaining time', value = f'**Ends in {time} mins**', inline=False )
+            else:
+                _timeHrs = time // 60
+                _timeMins = time - (_timeHrs * 60)
+                emb.set_field_at(index= 2, name = 'Remaining time', value = f'**Ends in {_timeHrs} hrs and {_timeMins} mins**', inline=False )
+            emb.set_field_at(index = 3, name = 'Number of participants', value = f"`{getPoll(msg.id).polls_participants.count()}`", inline=False )
+            try:
+                await msg.edit(embed=emb)
+            except:
+                print(datetime.datetime.now(), "Can't find poll: maybe it was deleted")
+                pollDelete(msg) # Django
+                break
+            time -= 1
+            await asyncio.sleep(60)
+        if time <= 0:
+            emb.clear_fields()
+            emb.title = f':pencil: Poll #{msg.id} by {object.polls_author.user_name}!'
+            if (getPoll(msg.id).polls_participants.count()) == 0:
+                emb.add_field(name='Poll', value='No valid entrants.')
+                emb.add_field(name='Question', value=getPoll(msg.id).polls_name, inline=False)
+                print(datetime.datetime.now(), 'Poll #', msg.id, 'has ended! No valid entrants.')
+                pollWinnerSet(msg, 'No valid entrants') # Django
+                return await msg.edit(embed=emb, components = [])
+            else:
+                d = {}
+                for i in getPoll(msg.id).polls_options.all():
+                    d[i] = i.option_voters.count()
+                    emb.add_field(name=f'Option "{i}"', value=f'`{i.option_voters.count()}` votes')
+                winner = max(d.items(), key=operator.itemgetter(1))[0]
+                emb.add_field(name='Winner', value=winner, inline=False)
+            emb.colour = 0xFFD966
+            emb.add_field(name='Ended at', value=object.polls_time.strftime("%b %d %Y %H:%M:%S"), inline=False)
+            await msg.edit(embed=emb, components = [])
+            pollWinnerSet(msg, winner) # Djangon
+            print(datetime.datetime.now(), 'Poll #', msg.id, 'has ended!')
+
+    @tasks.loop(count=1)
+    async def checkPollsLoop(self):
+        for i in getAllActivePolls():
+            await self.pollsTask(i)
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        self.checkPollsLoop.start()
+
+    # End of task area
 
     @commands.has_any_role('📩Polls')
     @commands.group(name='poll')
@@ -57,7 +114,7 @@ class Polls(commands.Cog):
     async def pollCreate(self, ctx, time: int, item: str, *args):
         if time <= 10:
             return await ctx.reply(f":pushpin: {ctx.author.mention},  I can't create poll with less 10 mins in time!")
-        if len(args) != len(set(args)):
+        elif len(args) != len(set(args)):
             return await ctx.reply(f":pushpin: {ctx.author.mention},  I can't create poll with duplicates!")
         fetch = await Database.getPollsChannel(self=Database, guild=ctx.guild)
         channel = get(ctx.guild.channels, id=fetch)
@@ -73,87 +130,25 @@ class Polls(commands.Cog):
         for i in args:
             components[0].append(Button(label=f"{i}", style=ButtonStyle.gray))
         end = datetime.datetime.now().astimezone(get_localzone()) + datetime.timedelta(seconds= time*60)
-        emb.add_field(name='Question', value=item, inline=False)
-        emb.add_field(name='Ends at', value=end.strftime("%b %d %Y %H:%M:%S"), inline=False)
-        emb.add_field(name = 'Null', value = f'Null', inline=False )
-        emb.add_field(name = 'Null', value = f'Null', inline=False )
+        values = [
+            ('Question', item, False),
+            ('Ends at', end.strftime("%b %d %Y %H:%M:%S"), False),
+            ('Null', 'Null', False ),
+            ('Null', 'Null', False )
+        ]
+        for name, value, inline in values:
+            emb.add_field(name=name, value=value, inline=inline)
         emb.set_footer(text=f'Created by {self.bot.user.name}')
-        msg = await channel.send('everyone',
-            embed=emb,
-            components = components)
+        msg = await channel.send('everyone', embed=emb, components = components)
         emb.title = f':pencil: Poll #{msg.id} by {ctx.author.name}!'
         await msg.edit(embed=emb)
-        # JSON area
-        data = {
-            'time': f'{datetime.datetime.now().astimezone(get_localzone()).strftime("%b %d %Y %H:%M:%S")}',
-            'question': item,
-            'hostedBy': ctx.author.id,
-            'status': True,
-            'winner': None,
-            'participants': [],
-        }
-        for i in args:
-            data.update({str(i): []})
-        with open(f"Polls/{msg.id}.json", "w") as i:
-            json.dump(data, i)
-        # End of JSON area
         print(datetime.datetime.now(), 'Poll #', msg.id, ' with', len(args), 'options and ', item ,'question has created by', ctx.author)
-        # Django Area
         t = threading.Thread(target=pollObject, args=(ctx, msg, end, item))
         t.start()
         t.join()
         for i in components[0]: # Django
             threading.Thread(target=pollOptionCreate, args=(msg, i.label, ctx.guild)).start()
-        # End of Django Area
-        while time > 0:
-            with open(f"Polls/{msg.id}.json", "r") as i:
-                data = json.load(i)
-            if time < 60:
-                emb.set_field_at(index= 2, name = 'Remaining time', value = f'**Ends in {time} mins**', inline=False )
-            else:
-                _timeHrs = time // 60
-                _timeMins = time - (_timeHrs * 60)
-                emb.set_field_at(index= 2, name = 'Remaining time', value = f'**Ends in {_timeHrs} hrs and {_timeMins} mins**', inline=False )
-            emb.set_field_at(index = 3, name = 'Number of participants', value = f"`{len(data['participants'])}`", inline=False )
-            try:
-                await msg.edit(embed=emb)
-            except:
-                print(datetime.datetime.now(), "Can't find poll: maybe it was deleted")
-                pollDelete(msg) # Django
-                break
-            time += -1
-            await asyncio.sleep(60)
-        if time <= 0:
-            emb.clear_fields()
-            emb.title = f':pencil: Poll #{msg.id} by {ctx.author.name}!'
-            with open(f"Polls/{msg.id}.json", "r") as i:
-                data = json.load(i)
-            data['status'] = False
-            if (len(data['participants'])) == 0:
-                emb.add_field(name='Poll', value='No valid entrants.')
-                emb.add_field(name='Question', value=item, inline=False)
-                data['winner'] = 'No valid entrants'
-                with open(f"Polls/{msg.id}.json", "w") as i:
-                    json.dump(data, i)
-                print(datetime.datetime.now(), 'Poll #', msg.id, 'has ended! No valid entrants.')
-                pollWinnerSet(msg, 'No valid entrants') # Django
-                return await msg.edit(embed=emb, components = [])
-            else:
-                d = {}
-                for i in args:
-                    d[i] = int(len(data[i]))
-                    emb.add_field(name=f'Option "{i}"', value=f'`{len(data[i])}` votes')
-                    pollOptionsVoters(msg, i, data[i]) # Django
-                winner = max(d.items(), key=operator.itemgetter(1))[0]
-                emb.add_field(name='Winner', value=winner, inline=False)
-            emb.colour = 0xFFD966
-            emb.add_field(name='Ended at', value=end.strftime("%b %d %Y %H:%M:%S"), inline=False)
-            await msg.edit(embed=emb, components = [])
-            data['winner'] = winner
-            pollWinnerSet(msg, winner) # Djangon
-            print(datetime.datetime.now(), 'Poll #', msg.id, 'has ended!')
-            with open(f"Polls/{msg.id}.json", "w") as i:
-                json.dump(data, i)
+        await self.pollsTask(getPoll(msg.id))
 
     @commands.Cog.listener()
     async def on_button_click(self, interaction):
@@ -161,15 +156,10 @@ class Polls(commands.Cog):
         if int(interaction.raw_data['d']['message']['id']) == await Database.getWelcomeMsg(Database, guild):
             return
         try:
-            with open(f"Polls/{int(interaction.raw_data['d']['message']['id'])}.json", "r") as i:
-                    data = json.load(i)
-            if interaction.user.id in data['participants']:
+            if interaction.user.id in getList(int(interaction.raw_data['d']['message']['id'])):
                 return await interaction.respond(content = "You're already in poll list")
             else:
-                data[interaction.component.label].append(interaction.user.id)
-                data['participants'].append(interaction.user.id)
-                with open(f"Polls/{int(interaction.raw_data['d']['message']['id'])}.json", "w") as i:
-                    json.dump(data, i)
+                threading.Thread(target=addPollsVote, args=(interaction.component.label, interaction.raw_data['d']['message']['id'], interaction.user.id)).start()
                 return await interaction.respond(content = "You were added to the poll list")
         except:
             pass

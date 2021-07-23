@@ -63,7 +63,7 @@ class CustomHelp(commands.Cog):
                         icon_url=self.bot.user.avatar_url)
             commandsAvailable = [
                 (':japanese_ogre: Admin', "`kick` `ban` `voicekick` `mute` `unmute` `clear`", True),
-                (':tools: Management', '`setup` `setrules` `createLogChannel` `rulerole`', False),
+                (':tools: Management', '`setup` `setrules` `createLogChannel` `rulerole` `makecounter` `settings`', False),
                 (f':round_pushpin: Voicerooms | `{botPrefix}voiceroom`', '`create` `delete`', False),
                 (f'🎉Giveaways | `{botPrefix}giveaway`', '`create` `channel`', False),
                 (f'📩Polls | `{botPrefix}poll`', '`create` `channel`', False),
@@ -115,7 +115,7 @@ class CustomHelp(commands.Cog):
     @help.command(name='management')
     async def guildManagementModuleHelp(self, ctx):
         desc = 'Allows you to manage your discord server'
-        commands = "`setup` `setrules` `createLogChannel`"
+        commands = "`setup` `setrules` `createLogChannel` `makecounter` `settings`"
         await ctx.reply(embed=await self.helpModuleBase(':tools: Management', desc, commands))
 
     @help.command(name='setup')
@@ -137,6 +137,16 @@ class CustomHelp(commands.Cog):
     async def setWelcomeRolelHelp(self, ctx):
         await ctx.reply(embed=await self.helpCommandBase(
             'rulerile', 'Sets Welcome role', '**Only owner can use this command**', "Management module", "None"))
+
+    @help.command(name='makecounter')
+    async def makeCounterlHelp(self, ctx):
+        await ctx.reply(embed=await self.helpCommandBase(
+            'makecounter', 'Creates member counter channel', '**Only owner can use this command**', "Management module", "None"))
+
+    @help.command(name='settings')
+    async def settingsHelp(self, ctx):
+        await ctx.reply(embed=await self.helpCommandBase(
+            'settings', "Shows bot's settings", '**Only owner can use this command**', "Management module", "None"))
 
     # -- Voicerooms module
     @help.group(name='voiceroom')

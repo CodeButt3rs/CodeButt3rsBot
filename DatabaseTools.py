@@ -32,6 +32,7 @@ class Database(commands.Cog):
             con.commit()
         else:
             return
+
     # -- CREATE commands
     async def DataBaseCreate(self):
         c.execute('''CREATE TABLE IF NOT EXISTS guildsettings(
@@ -42,7 +43,8 @@ class Database(commands.Cog):
             welcomemsg numeric,
             counterchannel numeric,
             giveawayschannel numeric,
-            pollschannel numeric
+            pollschannel numeric,
+            welcomerole numeric
         )
         ''')
         c.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_guildid ON guildsettings(guildid)')
@@ -136,7 +138,7 @@ class Database(commands.Cog):
     async def getWelcomeRole(self, guild) -> int or None:
         c.execute(f'SELECT welcomerole FROM guildsettings WHERE guildid = {guild.id}')
         fetch = lambda f: None if f is None else f[0]
-        return fetch(c.fetchone())(c.fetchone)
+        return fetch(c.fetchone())
 
 
     # --- DataBase Owner and Administrator commands ---
