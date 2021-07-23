@@ -64,7 +64,7 @@ class Messages(commands.Cog):
             await Database.setVoiceChannelNull(self=Database, guild=channel.guild)
             print(datetime.datetime.now(), 'Voiceroom channel has deleted!')
 
-    @commands.command(name="botsettings")
+    @commands.command(name="settings")
     async def settings(self, ctx):
         logchannel = get(ctx.guild.channels, id=await Database.getLogChannel(Database, ctx.guild)) or 'None'
         voicechannel = get(ctx.guild.channels, id=await Database.getVoiceChannel(Database, ctx.guild)) or 'None'
@@ -96,6 +96,8 @@ class Messages(commands.Cog):
             await ctx.reply(f"{ctx.author.mention}, *This command is Server only!*"
             f"\n:pushpin: **This command can't be used in private messages!**")
         else:
+            await ctx.reply(f"{ctx.author.mention}, *An error occured!*"
+            f"\n:pushpin: **Contact the bot owner and tell him Time and Used command**")
             print(datetime.datetime.now(), "Unexpected error:", error)
 
 
