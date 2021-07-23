@@ -19,14 +19,14 @@ class Messages(commands.Cog):
     async def on_connect(self):
         print(datetime.datetime.now(), 'Connected to Discord Servers')
 
-    # @commands.Cog.listener()
-    # async def on_ready(self):
-    #     guild = get(self.bot.guilds, id=799929695218171904)
-    #     try:
-    #         await guild.owner.send(f"{guild.owner.mention} **Hurray!** I've launched on Heroku and ready to serve you!")
-    #     except:
-    #         pass
-    #     print(datetime.datetime.now(), "Hurray! I've launched on Heroku and ready to serve you!")
+    @commands.Cog.listener()
+    async def on_ready(self):
+        guild = get(self.bot.guilds, id=799929695218171904)
+        try:
+            await guild.owner.send(f"{guild.owner.mention} **Hurray!** I've launched on Heroku and ready to serve you!")
+        except:
+            pass
+        print(datetime.datetime.now(), "Hurray! I've launched on Heroku and ready to serve you!")
 
     @commands.Cog.listener()
     async def on_resumed(self):
