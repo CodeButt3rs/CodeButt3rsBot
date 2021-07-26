@@ -29,9 +29,14 @@ class DiscordUser(models.Model):
         return self.user_name
 
     def save(self, *args, **kwargs):
-        self.user_guilds_count = self.user_guilds.count()
-        self.user_messages_count = Message.objects.filter(message_author=DiscordUser.objects.get(user_id=self.user_id)).count()
-        super(DiscordUser, self).save(*args, **kwargs) # Call the "real" save() method.
+        if self.pk:
+            self.user_guilds_count = self.user_guilds.count()
+            self.user_messages_count = Message.objects.filter(message_author=DiscordUser.objects.get(user_id=self.user_id)).count()
+            super(DiscordUser, self).save(*args, **kwargs) # Call the "real" save() method.
+        else:
+            super(DiscordUser, self).save(*args, **kwargs) # Call the "real" save() method.
+            self.save()
+
 
     def get_absolute_url(self):
         return reverse("user", kwargs={"pk": self.pk})
@@ -85,10 +90,10 @@ class Guild(models.Model):
 
     def save(self, *args, **kwargs):
         if Message.objects.filter(message_guild = self).exists(): 
-            self.guild_messages = Message.objects.filter(message_guild = self).count()
+            self.guild_messages = Message.objects.filter(message_guild_id = self.pk).count()
         else: self.guild_messages = 0
         if DiscordUser.objects.filter(user_guilds = self).exists(): 
-            self.guild_members = DiscordUser.objects.filter(user_guilds = self).count()
+            self.guild_members = DiscordUser.objects.filter(user_guilds__id = self.pk).count()
         else: self.guild_members = 0
         super(Guild, self).save(*args, **kwargs) # Call the "real" save() method.
 
