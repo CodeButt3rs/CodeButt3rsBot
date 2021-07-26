@@ -35,14 +35,15 @@ def rgb_to_hex(red, green, blue): # RGB to HEX color
     return '#%02x%02x%02x' % (red, green, blue)
 
 def getVerificationLevel(verification): # Verification level
-    if verification == discord.enums.VerificationLevel.none:
-        return 0
-    elif verification == discord.enums.VerificationLevel.low:
+    if verification == discord.enums.VerificationLevel.low:
         return 1
     elif verification == discord.enums.VerificationLevel.medium:
         return 2
     elif verification == discord.enums.VerificationLevel.high:
         return 3
+    elif verification == discord.enums.VerificationLevel.extreme:
+        return 4
+    return 0 # If None
 
 def is_guild_owner():
     def predicate(ctx):
@@ -311,12 +312,37 @@ class Djangoorm(commands.Cog):
             messages = await i.history(limit=None).flatten()
             threading.Thread(target=messagesScanToList, args=(messages, i)).start()
 
-    async def startScan(self, guild) -> threading.Thread:
-        threading.Thread(target=startingMethod, args=(guild,)).start()
+    async def messagesAmount(self, guild):
+        amount = 0
+        for i in guild.channels:
+            if str(i.type) != 'text': continue
+            messages = await i.history(limit=None).flatten()
+            amount += len(messages)
+        return amount
+
+    async def scanTime(self, guild):
+        msgAmount = await self.messagesAmount(guild)
+        print((len(guild.members) + len(guild.channels) + len(guild.categories) + len(guild.roles)) / 100 * 60)
+        minutes = ((len(guild.members) / 100 / 10 + msgAmount / 1000 / 150) + ((len(guild.members) + len(guild.channels) + len(guild.categories) + len(guild.roles)) / 100))
+        print(minutes)
+        if minutes < 1: return f"{minutes * 60 // 1} seconds"
+        elif minutes > 1 and minutes <= 60: return f"{minutes // 1} minutes"
+        elif minutes > 60 and minutes <= 1440: return f"{minutes // 60} hrs {minutes % 60} mins"
+        elif minutes > 1440: return f"{minutes // 1440} days {minutes % 1440} mins"
+
+    async def startScan(self, guild):
+        time = await self.scanTime(guild) # Text time
         await guild.owner.send(f"{guild.owner.mention}, *Scanning sequence started*"
-            f"\n:pushpin: **Messages scanning process will start in 20 minutes**")
-        await asyncio.sleep(60 * 20) # 20minutes cooldown
+            f"\n:pushpin: **Whole process can take about ~{time}**")
+        threading.Thread(target=startingMethod, args=(guild,)).start() # Starts everything
+        msgAmount = await self.messagesAmount(guild)
+        await asyncio.sleep(len(guild.members) / 100 / 10 * 60) # N-minutes cooldown
         await self.messages(guild)
+        await asyncio.sleep(msgAmount / 1000 / 150 * 60)
+        threading.Thread(target=startingMethod, args=(guild,)).start()
+        await asyncio.sleep((len(guild.members) + len(guild.channels) + len(guild.categories) + len(guild.roles)) / 100 * 60)
+        await guild.owner.send(f"{guild.owner.mention}, *Scanning sequence completed!*"
+            f"\n:pushpin: **You can check your guild on http://Butt3rs.space site!**")
     
     @commands.cooldown(1, 3600 * 12, type=BucketType.guild)
     @commands.command(name='StartScan')
@@ -324,7 +350,6 @@ class Djangoorm(commands.Cog):
     @commands.has_guild_permissions(administrator=True)
     async def scan(self, ctx):
         await self.startScan(ctx.guild)
-        await self.messages(ctx.guild)
 
     @scan.error
     async def scan_error(self, ctx, error):
